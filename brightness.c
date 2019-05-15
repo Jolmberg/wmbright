@@ -28,7 +28,6 @@ struct monitor_data {
     uint32_t level;                 /* Current backlight level */
     float normalised_level;	        /* level, in [0, 1] */
     float actual_level;             /* normalised + global boost */
-    int output_number;
     /* unsigned short red[100]; */
     /* unsigned short green[100]; */
     /* unsigned short blue[100]; */
@@ -38,6 +37,7 @@ struct monitor_data {
     XRRCrtcGamma **gamma_precalc;
     uint32_t brightness;            /* Wanted xrandr brightness */
     uint32_t last_set_brightness;
+    struct dimensions dim;          /* Monitor position and size */
     pthread_mutex_t mutex;
     bool thread_active;
 };
@@ -180,7 +180,9 @@ void set_brightness_level(struct monitor_data *m)
     pthread_t thread;
 
     pthread_mutex_lock(&m->mutex);
-    if (m->thread_active) {
+    m->actual_level = CLAMP(m->normalised_level + global_offset, 0.0, 1.0);
+    m->brightness = CLAMP(100 * m->actual_level, 0, 100);
+    if (m->thread_active || (m->last_set_brightness == m->brightness)) {
         pthread_mutex_unlock(&m->mutex);
         return;
     }
@@ -455,23 +457,26 @@ void brightness_init(Display *x_display, bool set_verbose)
         }
         if (!m->is_clone) {
             m->data = (struct monitor_data *)malloc(sizeof(struct monitor_data));
-            m->data->has_backlight = false;
-            m->data->backlight_selected = false;
-            m->data->crtc = 0;
-            pthread_mutex_init(&m->data->mutex, NULL);
-            m->data->thread_active = false;
-        }
-        struct monitor_data *d = m->data;
-        d->gamma = NULL;
-        if (verbose)
-            printf("Storing crtc, monitor: %d, crtc: %ld\n", i2, oi->crtc);
-        if (oi->crtc != 0) {
+            struct monitor_data *d = m->data;
+            d->has_backlight = false;
+            d->backlight_selected = false;
             d->crtc = oi->crtc;
             d->output = screen->outputs[i];
+            pthread_mutex_init(&d->mutex, NULL);
+            d->thread_active = false;
             get_backlight_property(d);
+            d->gamma = NULL;
+            XRRCrtcInfo *ci = XRRGetCrtcInfo(display, screen, d->crtc);
+            d->dim = (struct dimensions){ ci->x, ci->y, ci->width, ci->height };
+            /* d->x = ci->x; */
+            /* d->y = ci->y; */
+            /* d->width = ci->width; */
+            /* d->height = ci->height; */
+            XRRFreeCrtcInfo(ci);
         }
-                
         XRRFreeOutputInfo(oi);
+        if (verbose)
+            printf("Stored monitor: %d, crtc: %ld\n", i2, m->data->crtc);
     }
     
     XRRFreeScreenResources(screen);
@@ -499,6 +504,7 @@ void brightness_reinit() {
 
     brightness_init(display, verbose);
 }
+
 static bool get_brightness_state(void)
 {
     if (!needs_update)
@@ -567,13 +573,16 @@ float get_average_level(void)
     return total / count;
 }
 
-float brightness_get_level(void)
+float brightness_get_level(int monitor)
 {
-    if (cur_monitor == 0) {
+    if (monitor < 0) {
+        monitor = cur_monitor;
+    }
+    if (monitor == 0) {
         return get_average_level();
     } else {
         // get_brightness_state();
-        return CLAMP(monitors[cur_monitor].data->normalised_level + global_offset, 0.0, 1.0);
+        return CLAMP(monitors[monitor].data->normalised_level + global_offset, 0.0, 1.0);
     }
 }
 
@@ -608,19 +617,19 @@ int brightness_get_percent(void)
     if (cur_monitor == 0) {
         return 100 * get_average_level();
     } else {
-        return 100 * brightness_get_level();
+        return 100 * brightness_get_level(-1);
     }
 }
 
-float brightness_get_level_by_crtc(RRCrtc crtc)
-{
-    for (int i = 1; i < n_monitors; i++) {
-        if (monitors[i].data->crtc == crtc) {
-            return CLAMP(monitors[i].data->normalised_level + global_offset, 0.0, 1.0);
-        }
-    }
-    return -10;
-}
+/* float brightness_get_level_by_crtc(RRCrtc crtc) */
+/* { */
+/*     for (int i = 1; i < n_monitors; i++) { */
+/*         if (monitors[i].data->crtc == crtc) { */
+/*             return CLAMP(monitors[i].data->normalised_level + global_offset, 0.0, 1.0); */
+/*         } */
+/*     } */
+/*     return -10; */
+/* } */
 
 void brightness_set_level(float level)
 {
@@ -656,8 +665,8 @@ void brightness_set_level_rel(float delta_level)
             if (delta_level > max)
                 delta_level = max;
         } else if (delta_level < 0) {
-            float max = get_max_from_min();
-            if (delta_level > max)
+            float max = -get_max_from_min();
+            if (delta_level < max)
                 delta_level = max;
         }
         global_offset += delta_level;
@@ -683,8 +692,7 @@ void brightness_set_monitor_rel(int delta_monitor)
     if (cur_monitor < 0)
         cur_monitor += n_monitors;
     
-    //printf("set_monitor_rel: get_state\n");
-    //get_brightness_state();
+    get_brightness_state();
 }
 
 int brightness_get_current_monitor(void)
@@ -740,18 +748,28 @@ void brightness_unready(void)
     }
 }
 
-char *brightness_get_method_by_crtc(RRCrtc crtc)
+char *brightness_get_method(int monitor)
 {
-    for (int i = 1; i < n_monitors; i++) {
-        if (monitors[i].data->crtc == crtc) {
-            struct monitor_data *m = monitors[i].data;
-            if (m->has_backlight && m->backlight_selected) {
-                return methods[0];
-            } else {
-                return methods[1];
-            }
-        }
+    if (monitor < 0)
+        monitor = cur_monitor;
+    struct monitor_data *m = monitors[monitor].data;
+    if (m->has_backlight && m->backlight_selected) {
+        return methods[0];
+    } else {
+        return methods[1];
     }
     printf("This is bad!\n");
     return NULL;
+}
+
+int brightness_get_monitor_count(void)
+{
+    return n_monitors - 1;
+}
+
+struct dimensions brightness_get_dimensions(int monitor)
+{
+    if (monitor < 0)
+        monitor = cur_monitor;
+    return monitors[monitor].data->dim;
 }

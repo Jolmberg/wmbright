@@ -115,15 +115,15 @@ void dockapp_init(Display *x_display)
 {
     display = x_display;
 
-    XRRScreenResources *screen = XRRGetScreenResources(display, DefaultRootWindow(display));
-    dockapp.osd = (struct osd *)malloc(sizeof(struct osd)*screen->ncrtc);
-    dockapp.osd_count = screen->ncrtc;
-    for (int i = 0; i < screen->ncrtc; i++) {
-        dockapp.osd[i].crtc = screen->crtcs[i];
-        dockapp.osd[i].gc = 0;
-        dockapp.osd[i].win = 0;
-	}
-    XRRFreeScreenResources(screen);
+    /* XRRScreenResources *screen = XRRGetScreenResources(display, DefaultRootWindow(display)); */
+    /* dockapp.osd = (struct osd *)malloc(sizeof(struct osd)*screen->ncrtc); */
+    /* dockapp.osd_count = screen->ncrtc; */
+    /* for (int i = 0; i < screen->ncrtc; i++) { */
+    /*     dockapp.osd[i].crtc = screen->crtcs[i]; */
+    /*     dockapp.osd[i].gc = 0; */
+    /*     dockapp.osd[i].win = 0; */
+	/* } */
+    /* XRRFreeScreenResources(screen); */
 }
 
 void redraw_window(void)
@@ -139,7 +139,7 @@ void ui_update(void)
     //draw_stereo_led();
     draw_bl_led();
     //draw_mute_led();
-    draw_knob(brightness_get_level());
+    draw_knob(brightness_get_level(-1));
     /* draw_slider(brightness_get_balance()); */
     redraw_window();
 }
@@ -147,7 +147,7 @@ void ui_update(void)
 void knob_turn(float delta)
 {
     brightness_set_level_rel(delta);
-    draw_knob(brightness_get_level());
+    draw_knob(brightness_get_level(-1));
     redraw_window();
 }
 
@@ -381,6 +381,22 @@ void new_osd(int height)
     int x;
     int y;
     XRRScreenResources *screen = XRRGetScreenResources(display, DefaultRootWindow(display));
+    dockapp.osd_count = brightness_get_monitor_count();
+    dockapp.osd = (struct osd *)malloc(sizeof(struct osd) * dockapp.osd_count);
+    for (int i = 0; i < dockapp.osd_count; i++) {
+        dockapp.osd[i].crtc = screen->crtcs[i];
+        dockapp.osd[i].gc = 0;
+        dockapp.osd[i].win = 0;
+    }
+
+    /* dockapp.osd_count = screen->ncrtc; */
+    /* for (int i = 0; i < screen->ncrtc; i++) { */
+    /*     dockapp.osd[i].crtc = screen->crtcs[i]; */
+    /*     dockapp.osd[i].gc = 0; */
+    /*     dockapp.osd[i].win = 0; */
+	/* } */
+    /* XRRFreeScreenResources(screen); */
+
     /* -sony-fixed-medium-r-normal--24-170-100-100-c-120-iso8859-1
      * -misc-fixed-medium-r-normal--36-*-75-75-c-*-iso8859-* */
 
@@ -412,18 +428,19 @@ void new_osd(int height)
     sizehints.flags = USSize | USPosition;
 
     for (int i = 0; i < dockapp.osd_count; i++) {
-        XRRCrtcInfo *crtc_info = XRRGetCrtcInfo(display, screen, dockapp.osd[i].crtc);
+        //XRRCrtcInfo *crtc_info = XRRGetCrtcInfo(display, screen, dockapp.osd[i].crtc);
         dockapp.osd[i].mapped = false;
+        struct dimensions dim = brightness_get_dimensions(i+1);
         
-        if (crtc_info->width == 0) {
+        if (dim.width == 0) {
             dockapp.osd[i].on = false;
-            XRRFreeCrtcInfo(crtc_info);
             continue;
         }
-        width = crtc_info->width - 200;
-        x = crtc_info->x + 100;
-        y = crtc_info->y + crtc_info->height - 120;
-        XRRFreeCrtcInfo(crtc_info);
+        width = dim.width - 200;
+        x = dim.x + 100;
+        y = dim.y + dim.height - 120;
+
+        // Rethink this?
         if (dockapp.osd[i].win &&
             width == dockapp.osd[i].width &&
             x == dockapp.osd[i].x &&
@@ -475,45 +492,41 @@ void new_osd(int height)
     }
 }
 
-void update_osd_by_crtc(RRCrtc crtc, bool up)
+void update_osd_by_number(int osd, bool up)
 {
     int foo;
-    for (int i = 0; i < dockapp.osd_count; i++) {
-        if (dockapp.osd[i].crtc == crtc) {
-            if (dockapp.osd[i].on) {
-                float level = brightness_get_level_by_crtc(dockapp.osd[i].crtc);
-                int bar = dockapp.osd[i].bar;
-                foo = (dockapp.osd[i].width - 20) * level / 20.0;
-                
-                if (up) {
-                    for (int j = 1; j <= foo; j++)
-                        XFillRectangle(display, dockapp.osd[i].win, dockapp.osd[i].gc,
-                                       j * 20, 30, 5, 25);
-                } else if (foo < bar) {
-                    XClearArea(display, dockapp.osd[i].win, ((foo+1) * 20), 30,
-                               ((bar-foo) * 20), 25, 1);
-                } else if (foo > bar) {
-                    for (int j = (bar > 0 ? bar : 1); j <= foo; j++)
-                        XFillRectangle(display, dockapp.osd[i].win, dockapp.osd[i].gc,
-                                       j * 20, 30, 5, 25);
-                }
-                dockapp.osd[i].bar = foo;
-            }
+    if (dockapp.osd[osd].on) {
+        float level = brightness_get_level(osd + 1);
+        int bar = dockapp.osd[osd].bar;
+        foo = (dockapp.osd[osd].width - 20) * level / 20.0;
+
+        if (up) {
+            for (int j = 1; j <= foo; j++)
+                XFillRectangle(display, dockapp.osd[osd].win, dockapp.osd[osd].gc,
+                               j * 20, 30, 5, 25);
+        } else if (foo < bar) {
+            XClearArea(display, dockapp.osd[osd].win, ((foo+1) * 20), 30,
+                       ((bar-foo) * 20), 25, 1);
+        } else if (foo > bar) {
+            for (int j = (bar > 0 ? bar : 1); j <= foo; j++)
+                XFillRectangle(display, dockapp.osd[osd].win, dockapp.osd[osd].gc,
+                               j * 20, 30, 5, 25);
         }
+        dockapp.osd[osd].bar = foo;
     }
 }
 
 void update_osd(bool up)
 {
     if (config.osd) {
-        if (brightness_get_current_monitor() == 0) { // Map all of them!
+        if (brightness_get_current_monitor() == 0) { // Update all of them!
             for (int i = 0; i < dockapp.osd_count; i++) {
                 if (dockapp.osd[i].on) {
-                    update_osd_by_crtc(dockapp.osd[i].crtc, up);
+                    update_osd_by_number(i, up);
                 }
             }
         } else {
-            update_osd_by_crtc(brightness_get_crtc(), up);
+            update_osd_by_number(brightness_get_current_monitor()-1, up);
         }
     }
 }
@@ -532,17 +545,13 @@ void unmap_osd(void)
     }
 }
 
-void map_osd_by_crtc(RRCrtc crtc) {
-    for (int i = 0; i < dockapp.osd_count; i++) {
-        if (dockapp.osd[i].crtc == crtc) {
-            XMapRaised(display, dockapp.osd[i].win);
-            XDrawString(display, dockapp.osd[i].win, dockapp.osd[i].gc, 1, 25,
-                        brightness_get_method_by_crtc(crtc), strlen(brightness_get_method_by_crtc(crtc)));
-            update_osd(true);
-            XFlush(display);
-            dockapp.osd[i].mapped = true;
-        }
-    }
+void map_osd_by_number(int osd) {
+    XMapRaised(display, dockapp.osd[osd].win);
+    XDrawString(display, dockapp.osd[osd].win, dockapp.osd[osd].gc, 1, 25,
+                brightness_get_method(osd+1), strlen(brightness_get_method(osd+1)));
+    update_osd(true);
+    XFlush(display);
+    dockapp.osd[osd].mapped = true;
 }
 
 void map_osd(void)
@@ -551,24 +560,24 @@ void map_osd(void)
         if (brightness_get_current_monitor() == 0) { // Map all of them!
             for (int i = 0; i < dockapp.osd_count; i++) {
                 if (dockapp.osd[i].on) {
-                    map_osd_by_crtc(dockapp.osd[i].crtc);
+                    map_osd_by_number(i);
                 }
             }
         } else {
-            map_osd_by_crtc(brightness_get_crtc());
+            map_osd_by_number(brightness_get_current_monitor()-1);
         }
     }
 }
 
-bool osd_mapped_by_crtc(RRCrtc crtc)
-{
-    for (int i = 0; i < dockapp.osd_count; i++) {
-        if (dockapp.osd[i].crtc == crtc) {
-            return dockapp.osd[i].mapped;
-        }
-    }
-    return false;
-}
+/* bool osd_mapped_by_crtc(RRCrtc crtc) */
+/* { */
+/*     for (int i = 0; i < dockapp.osd_count; i++) { */
+/*         if (dockapp.osd[i].crtc == crtc) { */
+/*             return dockapp.osd[i].mapped; */
+/*         } */
+/*     } */
+/*     return false; */
+/* } */
 
 bool osd_mapped(void)
 {
@@ -580,7 +589,7 @@ bool osd_mapped(void)
         }
         return false;
     } else {
-        return osd_mapped_by_crtc(brightness_get_crtc());
+        return dockapp.osd[brightness_get_current_monitor()-1].mapped;
     }
 }
 

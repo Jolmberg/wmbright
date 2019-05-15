@@ -18,16 +18,20 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+struct dimensions {
+    int x, y, width, height;
+};
+
 void brightness_init(Display *display, bool set_verbose);
 void brightness_reinit(void);
 bool brightness_is_changed(void);
-float brightness_get_level(void);
+float brightness_get_level(int monitor);
 void brightness_set_level(float level);
 void brightness_set_level_rel(float delta_level);
 void brightness_tick(void);
 const char *brightness_get_monitor_name(void);
 void brightness_set_monitor_rel(int delta_monitor);
-float brightness_get_level_by_crtc(RRCrtc crtc);
+//float brightness_get_level_by_crtc(RRCrtc crtc);
 int brightness_get_current_monitor(void);
 RRCrtc brightness_get_crtc(void);
 bool brightness_has_backlight(void);
@@ -36,4 +40,6 @@ void brightness_switch_backlight(void);
 void brightness_ready(void);
 void brightness_unready(void);
 int brightness_get_percent(void);
-char *brightness_get_method_by_crtc(RRCrtc crtc);
+char *brightness_get_method(int monitor);
+int brightness_get_monitor_count(void);
+struct dimensions brightness_get_dimensions(int monitor);

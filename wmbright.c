@@ -154,21 +154,15 @@ int main(int argc, char **argv)
             case DestroyNotify:
                 XCloseDisplay(display);
                 return EXIT_SUCCESS;
-            case RRNotify:
-                printf("RRNotfy!\n");
-                break;
             default:
-                printf("Event: %d\n", (int)event.type);
                 if (event.type == rr_event_base + RRNotify) {
-                    printf("xrandr event %d!\n", event.type - rr_event_base);
                     XRRNotifyEvent *notify = (XRRNotifyEvent *)&event;
-                    if (notify->subtype == RRNotify_OutputChange)
+                    if (notify->subtype == RRNotify_OutputChange) {
+                        if (config.verbose)
+                            printf("Outputs changed, reconfiguring.\n");
                         need_reinit = true;
-                    /* printf("display: %ld window: %d root: %d send_event: %d size_index: %d rotation: %d w: %d h: %d mw: %d mh: %d", */
-                    /*        (long)e->display, (int)e->window, (int) e->root, (int)e->send_event, (int)e->size_index, (int)e->rotation, e->width, e->height, e->mwidth, e->mheight); */
+                    }
                     XRRUpdateConfiguration(&event);
-                    ui_rrnotify();
-                    //printf("Randr event!!!!!!!\n");
                 }
                 break;
             }
@@ -176,11 +170,11 @@ int main(int argc, char **argv)
             if (need_reinit) {
                 need_reinit = false;
                 brightness_reinit();
+                ui_rrnotify();
                 continue;
             }
             usleep(100000);
-            if (brightness_tick)
-                brightness_tick();
+            //brightness_tick();
             scroll_text(3, 4, 57, false);
             /* rescroll message after some delay */
             if (idle_loop++ > 256) {
@@ -188,7 +182,6 @@ int main(int argc, char **argv)
                 idle_loop = 0;
             }
             /* get rid of OSD after a few seconds of idle */
-            //printf("idle loop: %d", idle_loop);
             if ((idle_loop > 15) && osd_mapped() && !button_pressed) {
                 unmap_osd();
                 idle_loop = 0;
@@ -231,12 +224,11 @@ static void button_press_event(XButtonEvent *event)
     double button_press_time = get_current_time();
     int x = event->x;
     int y = event->y;
-    bool double_click = false;
+    //bool double_click = false;
 
     /* handle wheel scrolling to adjust level */
     if (config.mousewheel) {
 	if (event->button == config.wheel_button_up) {
-        printf("wheel\n");
         brightness_ready();
 	    brightness_set_level_rel(config.scrollstep);
         brightness_unready();
@@ -248,7 +240,6 @@ static void button_press_event(XButtonEvent *event)
 	    return;
 	}
 	if (event->button == config.wheel_button_down) {
-        printf("wheel\n");
         brightness_ready();
 	    brightness_set_level_rel(-config.scrollstep);
         brightness_unready();
@@ -262,7 +253,7 @@ static void button_press_event(XButtonEvent *event)
     }
 
     if ((button_press_time - prev_button_press_time) <= 0.5) {
-        double_click = true;
+        //double_click = true;
         prev_button_press_time = 0.0;
     } else
         prev_button_press_time = button_press_time;
@@ -297,19 +288,11 @@ static void button_press_event(XButtonEvent *event)
 	    map_osd();
 	    ui_update();
 	    break;
-	case 5:			/* toggle mute */
-	    /* brightness_toggle_mute(); */
-	    /* ui_update(); */
-	    break;
-	case 6:			/* toggle rec */
-	    /* brightness_toggle_rec(); */
-	    /* ui_update(); */
-	    break;
 	case 10:
 	    scroll_text(3, 4, 57, true);
 	    break;
 	default:
-	    printf("unknown region pressed\n");
+	    //printf("unknown region pressed\n");
 	    break;
     }
 }
@@ -317,7 +300,6 @@ static void button_press_event(XButtonEvent *event)
 static int key_press_event(XKeyEvent *event)
 {
 	if (event->keycode == mmkeys.brightness_up) {
-        printf("key\n");
 		brightness_set_level_rel(config.scrollstep);
 		if (!osd_mapped())
 			map_osd();
@@ -327,7 +309,6 @@ static int key_press_event(XKeyEvent *event)
 		return 1;
 	}
 	if (event->keycode == mmkeys.brightness_down) {
-        printf("key\n");
 		brightness_set_level_rel(-config.scrollstep);
 		if (!osd_mapped())
 			map_osd();
@@ -377,6 +358,7 @@ static void motion_event(XMotionEvent *event)
             set_cursor(NULL_CURSOR);
 
             delta = (float)(mouse_drag_home_y - y) / display_height;
+
             knob_turn(delta);
 
             if (!osd_mapped())
@@ -388,20 +370,6 @@ static void motion_event(XMotionEvent *event)
                      mouse_drag_home_x, mouse_drag_home_y);
         return;
     }
-
-    /* if (slider_pressed) { */
-    /*     if (x != mouse_drag_home_x) { */
-    /*         float delta; */
-
-    /*         set_cursor(NULL_CURSOR); */
-
-    /*         delta = (float)(x - mouse_drag_home_x) / display_width; */
-    /*         slider_move(delta); */
-    /*     } */
-    /*     XWarpPointer(display, None, event->window, x, y, 0, 0, */
-    /*                  mouse_drag_home_x, mouse_drag_home_y); */
-    /*     return; */
-    /* } */
 
     if (region == 1)
         set_cursor(HAND_CURSOR);
