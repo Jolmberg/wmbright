@@ -60,7 +60,7 @@ int main(int argc, char **argv)
 {
     XEvent event;
     int rr_event_base, rr_error_base;
-    bool have_randr;
+    bool need_reinit = false;
 
     config_init();
     parse_cli_options(argc, argv);
@@ -84,12 +84,11 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    have_randr = XRRQueryExtension(display, &rr_event_base, &rr_error_base);
-    if (!have_randr) {
+    if (!XRRQueryExtension(display, &rr_event_base, &rr_error_base)) {
         fprintf(stderr, "wmbright:error: randr extension not found\n");
         return EXIT_FAILURE;
     }
-    int rr_mask = RRScreenChangeNotifyMask;
+    int rr_mask = RROutputChangeNotifyMask; //RRScreenChangeNotifyMask;
     XRRSelectInput(display,
                    RootWindow(display, DefaultScreen(display)),
                    rr_mask);
@@ -123,7 +122,6 @@ int main(int argc, char **argv)
     create_pid_file();
     signal(SIGUSR1, (void *) signal_catch);
     signal(SIGUSR2, (void *) signal_catch);
-    printf("klafs\n");
     while (true) {
         if (button_pressed || slider_pressed || (XPending(display) > 0)) {
             XNextEvent(display, &event);
@@ -156,17 +154,30 @@ int main(int argc, char **argv)
             case DestroyNotify:
                 XCloseDisplay(display);
                 return EXIT_SUCCESS;
+            case RRNotify:
+                printf("RRNotfy!\n");
+                break;
             default:
-                if (have_randr) {
-                    if (event.type == rr_event_base + RRScreenChangeNotify) {
-                        printf("xrandr event %d!\n", event.type - rr_event_base);
-                        XRRUpdateConfiguration(&event);
-                        ui_rrnotify();
-                    }
+                printf("Event: %d\n", (int)event.type);
+                if (event.type == rr_event_base + RRNotify) {
+                    printf("xrandr event %d!\n", event.type - rr_event_base);
+                    XRRNotifyEvent *notify = (XRRNotifyEvent *)&event;
+                    if (notify->subtype == RRNotify_OutputChange)
+                        need_reinit = true;
+                    /* printf("display: %ld window: %d root: %d send_event: %d size_index: %d rotation: %d w: %d h: %d mw: %d mh: %d", */
+                    /*        (long)e->display, (int)e->window, (int) e->root, (int)e->send_event, (int)e->size_index, (int)e->rotation, e->width, e->height, e->mwidth, e->mheight); */
+                    XRRUpdateConfiguration(&event);
+                    ui_rrnotify();
+                    //printf("Randr event!!!!!!!\n");
                 }
                 break;
             }
         } else {
+            if (need_reinit) {
+                need_reinit = false;
+                brightness_reinit();
+                continue;
+            }
             usleep(100000);
             if (brightness_tick)
                 brightness_tick();
@@ -367,7 +378,7 @@ static void motion_event(XMotionEvent *event)
 
             delta = (float)(mouse_drag_home_y - y) / display_height;
             knob_turn(delta);
-            printf("motion\n");
+
             if (!osd_mapped())
                 map_osd();
             if (osd_mapped())

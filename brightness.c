@@ -54,7 +54,7 @@ static char *methods[] = { "Backlight", "Gamma" };
 static struct monitor *monitors;
 static int cur_monitor = 0;
 static int n_monitors;
-static bool needs_update = true;
+static bool needs_update;
 static Display *display;
 static float global_offset;
 static bool verbose;
@@ -84,7 +84,6 @@ static bool get_backlight_property(struct monitor_data *m)
     Atom *a = XRRListOutputProperties(display, m->output, &propcount);
     for (int j = 0; j < propcount; j++) {
         char *name = XGetAtomName(display, a[j]);
-        printf("name: %s \n", name);
         bool found_backlight = !strcmp(name, "Backlight");
         Xfree(name);
         if (found_backlight) {
@@ -114,8 +113,9 @@ static bool get_backlight_property(struct monitor_data *m)
             m->backlight_atom = a[j];
             m->level = *(uint32_t *)prop;
             Xfree(prop);
-            printf("Output supports backlight, range: (%d, %d), current: %d\n",
-                   m->min, m->max, m->level);
+            if (verbose)
+                printf("Output supports backlight, range: (%d, %d), current: %d\n",
+                       m->min, m->max, m->level);
             m->has_backlight = true;
             m->backlight_selected = true;
             Xfree(a);
@@ -171,7 +171,6 @@ void *do_set_brightness_level(void *data)
         /* memcpy(m->gamma->blue, source->blue, sizeof(unsigned short) * m->gamma_size); */
         XRRSetCrtcGamma(display, m->crtc, source); //m->gamma);
         XFlush(display);
-        printf("Gamma set!\n");
         usleep(200000);
     } while (true);
 }
@@ -190,7 +189,7 @@ void set_brightness_level(struct monitor_data *m)
     pthread_create(&thread, NULL, do_set_brightness_level, (void *)m);
 }
 
-void brightness_to_gamma(struct monitor_data *m, uint32_t brightness_in, XRRCrtcGamma *target)
+void brightness_to_gamma(struct monitor_data *m, float gamma, XRRCrtcGamma *target)
 {
     if (!m->crtc) {
         return;
@@ -199,7 +198,7 @@ void brightness_to_gamma(struct monitor_data *m, uint32_t brightness_in, XRRCrtc
 	float gammaRed;
 	float gammaGreen;
 	float gammaBlue;
-    float brightness = brightness_in / 100.0;
+    float brightness = gamma; //brightness_in / 100.0;
 
     if (!m->gamma) {
         m->gamma_size = XRRGetCrtcGammaSize(display, m->crtc);
@@ -387,12 +386,13 @@ void get_gamma_values(struct monitor_data *m)
         /* m->gamma_precalc[i].red = (unsigned short *)malloc(sizeof(unsigned short) * m->gamma_size); */
         /* m->gamma_precalc[i].green = (unsigned short *)malloc(sizeof(unsigned short) * m->gamma_size); */
         /* m->gamma_precalc[i].blue = (unsigned short *)malloc(sizeof(unsigned short) * m->gamma_size); */
-        brightness_to_gamma(m, i, m->gamma_precalc[i]); // + i
+        brightness_to_gamma(m, i*0.01, m->gamma_precalc[i]); // + i
     }
 }
 
 void brightness_init(Display *x_display, bool set_verbose)
 {
+    needs_update = true;
     display = x_display;
     verbose = set_verbose;
     XRRScreenResources *screen = XRRGetScreenResources(display, DefaultRootWindow(display));
@@ -405,8 +405,9 @@ void brightness_init(Display *x_display, bool set_verbose)
             n_monitors++;
         XRRFreeOutputInfo(oi);
     }
-        
-    printf("n_monitors: %d\n", n_monitors);
+
+    if (verbose)
+        printf("Found %d active output(s)\n", n_monitors);
     monitors = (struct monitor *)malloc((n_monitors + 1) * sizeof(struct monitor));
 
     /* Use the first entry for the global controller */
@@ -481,6 +482,23 @@ void brightness_init(Display *x_display, bool set_verbose)
     }
 }
 
+void brightness_reinit() {
+    // Wait for threads to finish
+
+    // Free everything and start over
+    for (int i = 0; i < n_monitors; i++) {
+        if (i > 0) {
+            XRRFreeGamma(monitors[i].data->gamma);
+            for (int j = 0; j <= 100; j++) {
+                XRRFreeGamma(monitors[i].data->gamma_precalc[j]);
+            }
+        }
+        free(monitors[i].data);
+    }
+    free(monitors);
+
+    brightness_init(display, verbose);
+}
 static bool get_brightness_state(void)
 {
     if (!needs_update)
@@ -492,16 +510,18 @@ static bool get_brightness_state(void)
         if (monitors[i].is_clone)
             continue;
         struct monitor_data *m = monitors[i].data;
+        if (m->crtc == 0)
+            continue;
         if (m->has_backlight) {
             get_backlight_level(m);
+        }
+        get_gamma_values(m);
+        if (m->has_backlight && m->backlight_selected) {
             m->normalised_level = ((float)(m->level - m->min)) / (m->max - m->min);
-            m->actual_level = m->normalised_level;
-        }
-        if (m->crtc) {
-            get_gamma_values(m);
+        } else {
             m->normalised_level = (float)m->brightness / 100.0;
-            m->actual_level = m->normalised_level;
         }
+        m->actual_level = m->normalised_level;
     }
     XRRFreeScreenResources(screen);
     return true;
@@ -663,7 +683,7 @@ void brightness_set_monitor_rel(int delta_monitor)
     if (cur_monitor < 0)
         cur_monitor += n_monitors;
     
-    printf("set_monitor_rel: get_state\n");
+    //printf("set_monitor_rel: get_state\n");
     //get_brightness_state();
 }
 

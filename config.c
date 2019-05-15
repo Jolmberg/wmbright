@@ -38,12 +38,10 @@
 #define HELP_TEXT                                                   \
     "usage:\n"                                                      \
     "  -d <dsp>  connect to remote X display\n"                     \
-    "  -e <name> exclude channel, can be used many times\n"         \
+    "  -e <name> exclude output, can be used many times\n"          \
     "  -f <file> parse this config [~/.wmbrightrc]\n"               \
     "  -h        print this help\n"                                 \
-    "  -k        disable grabing volume control keys\n"             \
-    "  -m <dev>  oss mixer device [/dev/mixer]\n"                   \
-    "            or alsa card name [default]\n"                     \
+    "  -k        disable grabbing of brightness control keys\n"     \
     "  -o <num>  display osd on this monitor number or name [0]\n"  \
     "            use -1 to disable osd\n"                           \
     "  -v        verbose -> id, long name, name\n"                  \
@@ -51,9 +49,6 @@
 /* The global configuration */
 struct _Config config;
 
-/* The default device used for Mixer control */
-static const char default_mixer_device[] = "/dev/mixer";
-static const char default_card_name[] = "default";
 /* Default color for OSD */
 const char default_osd_color[] = "green";
 

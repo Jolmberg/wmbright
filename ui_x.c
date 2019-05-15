@@ -118,7 +118,6 @@ void dockapp_init(Display *x_display)
     XRRScreenResources *screen = XRRGetScreenResources(display, DefaultRootWindow(display));
     dockapp.osd = (struct osd *)malloc(sizeof(struct osd)*screen->ncrtc);
     dockapp.osd_count = screen->ncrtc;
-    printf("crtc count: %d\n", screen->ncrtc);
     for (int i = 0; i < screen->ncrtc; i++) {
         dockapp.osd[i].crtc = screen->crtcs[i];
         dockapp.osd[i].gc = 0;
@@ -151,13 +150,6 @@ void knob_turn(float delta)
     draw_knob(brightness_get_level());
     redraw_window();
 }
-
-/* void slider_move(float delta) */
-/* { */
-/*     /\* brightness_set_balance_rel(delta); *\/ */
-/*     /\* draw_slider(brightness_get_balance()); *\/ */
-/*     redraw_window(); */
-/* } */
 
 int blit_string(const char *text)
 {
@@ -366,7 +358,7 @@ XRRCrtcInfo *crtc_info_by_output_number(int monitor)
 {
     XRRScreenResources *screen = XRRGetScreenResources(display, DefaultRootWindow(display));
     if (monitor >= screen->ncrtc) {
-	fprintf(stderr, "wmix:warning: Requested osd monitor number is out of range, clamping\n");
+	fprintf(stderr, "wmbright:warning: Requested osd monitor number is out of range, clamping\n");
 	monitor = screen->ncrtc - 1;
     }
     XRRCrtcInfo *crtc_info = XRRGetCrtcInfo(display, screen, screen->crtcs[monitor]);
@@ -420,7 +412,6 @@ void new_osd(int height)
     sizehints.flags = USSize | USPosition;
 
     for (int i = 0; i < dockapp.osd_count; i++) {
-        printf("%d %ld\n", i, dockapp.osd[i].crtc);
         XRRCrtcInfo *crtc_info = XRRGetCrtcInfo(display, screen, dockapp.osd[i].crtc);
         dockapp.osd[i].mapped = false;
         
@@ -432,7 +423,6 @@ void new_osd(int height)
         width = crtc_info->width - 200;
         x = crtc_info->x + 100;
         y = crtc_info->y + crtc_info->height - 120;
-        printf("width: %d, x: %d, y: %d\n", width, x, y);
         XRRFreeCrtcInfo(crtc_info);
         if (dockapp.osd[i].win &&
             width == dockapp.osd[i].width &&
@@ -463,10 +453,8 @@ void new_osd(int height)
         name[3] = '0' + i;
         XStoreName(display, osdwin, name);
         XSelectInput(display, osdwin, ExposureMask);
-        printf("humbug\n");
         XChangeProperty(display, osdwin, XInternAtom(display, "_WIN_LAYER", False),
                         XA_CARDINAL, 32, PropModeReplace, (unsigned char *)&win_layer, 1);
-        printf("apa\n");
 
         gcval.foreground = get_color(display, config.osd_color);
         gcval.background = bg;
@@ -517,7 +505,6 @@ void update_osd_by_crtc(RRCrtc crtc, bool up)
 
 void update_osd(bool up)
 {
-    printf("Update osd\n");
     if (config.osd) {
         if (brightness_get_current_monitor() == 0) { // Map all of them!
             for (int i = 0; i < dockapp.osd_count; i++) {
@@ -534,11 +521,9 @@ void update_osd(bool up)
 
 void unmap_osd(void)
 {
-    printf("unmap_osd\n");
     if (config.osd) {
         for (int i = 0; i < dockapp.osd_count; i++) {
             if (dockapp.osd[i].mapped) {
-                printf("unmapping %d\n", i);
                 XUnmapWindow(display, dockapp.osd[i].win);
                 XFlush(display);
                 dockapp.osd[i].mapped = false;
@@ -548,29 +533,24 @@ void unmap_osd(void)
 }
 
 void map_osd_by_crtc(RRCrtc crtc) {
-    printf("map_osd_by_crtc: %ld\n", crtc);
     for (int i = 0; i < dockapp.osd_count; i++) {
         if (dockapp.osd[i].crtc == crtc) {
             XMapRaised(display, dockapp.osd[i].win);
             XDrawString(display, dockapp.osd[i].win, dockapp.osd[i].gc, 1, 25,
-                        brightness_get_method_by_crtc(crtc), strlen(brightness_get_method_by_crtc(crtc))); //, 10);
-//                    brightness_get_channel_name(), strlen(brightness_get_channel_name()));
+                        brightness_get_method_by_crtc(crtc), strlen(brightness_get_method_by_crtc(crtc)));
             update_osd(true);
             XFlush(display);
             dockapp.osd[i].mapped = true;
-            printf("mapped: %d\n", i);
         }
     }
 }
 
 void map_osd(void)
 {
-    printf("map_osd\n");
     if (config.osd) {
         if (brightness_get_current_monitor() == 0) { // Map all of them!
             for (int i = 0; i < dockapp.osd_count; i++) {
                 if (dockapp.osd[i].on) {
-                    printf("mapping: %d\n", i);
                     map_osd_by_crtc(dockapp.osd[i].crtc);
                 }
             }
@@ -584,10 +564,6 @@ bool osd_mapped_by_crtc(RRCrtc crtc)
 {
     for (int i = 0; i < dockapp.osd_count; i++) {
         if (dockapp.osd[i].crtc == crtc) {
-            if (dockapp.osd[i].mapped) {
-                printf("It was mapped!!! %d\n", i);
-            }
-
             return dockapp.osd[i].mapped;
         }
     }
@@ -599,7 +575,6 @@ bool osd_mapped(void)
     if (brightness_get_current_monitor() == 0) { 
         for (int i = 0; i < dockapp.osd_count; i++) {
             if (dockapp.osd[i].mapped) {
-                printf("it was mapped! %d\n", i);
                 return true;
             }
         }
@@ -637,15 +612,6 @@ void set_cursor(int type)
     oldtype = type;
 }
 
-/* private */
-/* static void draw_stereo_led(void) */
-/* { */
-/*     if (brightness_is_stereo())	/\* stereo capable *\/ */
-/* 	copy_xpm_area(78, 0, 9, 7, 28, 14);	/\* light up LCD *\/ */
-/*     else			/\* mono channel *\/ */
-/* 	copy_xpm_area(78, 7, 9, 7, 28, 14);	/\* turn off LCD *\/ */
-/* } */
-
 static void draw_bl_led(void)
 {
     if (brightness_has_backlight())	/* backlight exists */
@@ -653,17 +619,9 @@ static void draw_bl_led(void)
             copy_xpm_area(65, 0, 12, 7, 4, 42);	/* BL lit */
         else
             copy_xpm_area(65, 7, 12, 7, 4, 42); /* BL not lit */
-    else  /* backlight not available */
+    else /* backlight not available */
         copy_xpm_area(65, 14, 12, 7, 4, 42);	/* BL dark */
 }
-
-/* static void draw_mute_led(void) */
-/* { */
-/*     if (brightness_is_muted())	/\* mute *\/ */
-/* 	copy_xpm_area(65, 14, 20, 7, 39, 14);	/\* light up LCD *\/ */
-/*     else			/\* unmute *\/ */
-/* 	copy_xpm_area(65, 21, 20, 7, 39, 14);	/\* turn off LCD *\/ */
-/* } */
 
 static void draw_percent(void)
 {
@@ -709,14 +667,6 @@ static void draw_knob(float level)
     draw_percent();
 }
 
-/* static void draw_slider(float offset) */
-/* { */
-/*     int x = (offset * 50) / 5; */
-
-/*     copy_xpm_area(65, 45, 27, 20, 4, 40);	/\* repair region. move *\/ */
-/*     copy_xpm_area(65, 29, 7, 15, 14 + x, 43);	/\* slider *\/ */
-/* } */
-
 static Cursor create_null_cursor(Display *x_display)
 {
     Pixmap cursor_mask;
@@ -751,7 +701,7 @@ unsigned long get_color(Display *display, char *color_name)
 
     status = XParseColor(display, winattr.colormap, color_name, &color);
     if (status == 0) {
-	fprintf(stderr, "wmix:warning: Could not get color \"%s\" for OSD, falling back to default\n", color_name);
+	fprintf(stderr, "wmbright:warning: Could not get color \"%s\" for OSD, falling back to default\n", color_name);
 
 	if (color_name != default_osd_color)
 		status = XParseColor(display, winattr.colormap, default_osd_color, &color);
