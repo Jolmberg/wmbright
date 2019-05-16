@@ -98,7 +98,7 @@ static Cursor create_null_cursor(Display *x_display);
 
 /* ui stuff */
 //static void draw_stereo_led(void);
-static void draw_bl_led(void);
+static void draw_leds(void);
 //static void draw_mute_led(void);
 static void draw_percent(void);
 static void draw_knob(float level);
@@ -141,7 +141,7 @@ void redraw_window(void)
 void ui_update(void)
 {
     //draw_stereo_led();
-    draw_bl_led();
+    draw_leds();
     //draw_mute_led();
     draw_knob(brightness_get_level(-1));
     /* draw_slider(brightness_get_balance()); */
@@ -335,6 +335,16 @@ void new_window(char *name, int width, int height)
     XMapWindow(display, win);
 }
 
+void destroy_osd()
+{
+    for (int i = 0; i < dockapp.osd_count; i++) {
+        XFreeGC(display, dockapp.osd[i].gc);
+        XDestroyWindow(display, dockapp.osd[i].win);
+        /* dockapp.osd[i].gc = 0; */
+        /* dockapp.osd[i].win = 0; */
+    }
+}
+
 void new_osd(int height)
 {
     Window osdwin;
@@ -517,7 +527,7 @@ void unmap_osd(void)
 void map_osd_by_number(int osd) {
     XMapRaised(display, dockapp.osd[osd].win);
     XDrawString(display, dockapp.osd[osd].win, dockapp.osd[osd].gc, 1, 25,
-                brightness_get_method(osd+1), strlen(brightness_get_method(osd+1)));
+                brightness_get_method_name(osd+1), strlen(brightness_get_method_name(osd+1)));
     update_osd(true);
     XFlush(display);
     dockapp.osd[osd].mapped = true;
@@ -590,15 +600,24 @@ void set_cursor(int type)
     oldtype = type;
 }
 
-static void draw_bl_led(void)
+static void draw_leds(void)
 {
-    if (brightness_has_backlight()) /* backlight exists */
-        if (brightness_backlight_selected()) 
+    enum method method = brightness_get_method();
+    if (brightness_has_method(BACKLIGHT)) /* backlight exists */
+        if (method == BACKLIGHT)
             copy_xpm_area(65, 0, 12, 7, 4, 42); /* BL lit */
         else
             copy_xpm_area(65, 7, 12, 7, 4, 42); /* BL not lit */
     else /* backlight not available */
         copy_xpm_area(65, 14, 12, 7, 4, 42); /* BL dark */
+
+    if (brightness_has_method(GAMMA)) /* backlight exists */
+        if (method == GAMMA)
+            copy_xpm_area(77, 0, 12, 7, 4, 33); /* BL lit */
+        else
+            copy_xpm_area(77, 7, 12, 7, 4, 33); /* BL not lit */
+    else /* backlight not available */
+        copy_xpm_area(77, 14, 12, 7, 4, 33); /* BL dark */
 }
 
 static void draw_percent(void)
@@ -633,7 +652,7 @@ static void draw_knob(float level)
     led_topleft_y = (int)(led_y - (LED_HEIGHT / 2.0) + 0.5);
 
     /* clear previous knob picture */
-    copy_xpm_area(87, 0, 42, 42, 20, 18);
+    copy_xpm_area(101, 0, 42, 42, 20, 18);
 
     /* if (brightness_is_muted()) */
     /* led_pixmap = led_off_pixmap; */
@@ -694,5 +713,7 @@ unsigned long get_color(Display *display, char *color_name)
 
 void ui_rrnotify()
 {
+    destroy_osd();
     new_osd(60);
+    ui_update();
 }

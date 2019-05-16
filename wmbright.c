@@ -116,8 +116,10 @@ int main(int argc, char **argv)
     /* add click regions */
     add_region(1, 20, 18, 42, 42);    /* knob */
     add_region(2, 3, 41, 14, 9);      /* backlight indicator */
-    add_region(3, 3, 50, 7, 10);      /* previous channel */
-    add_region(4, 10, 50, 7, 10);     /* next channel */
+    add_region(3, 3, 32, 14, 9);      /* gamma indicator */
+
+    add_region(8, 3, 50, 7, 10);      /* previous channel */
+    add_region(9, 10, 50, 7, 10);     /* next channel */
     add_region(10, 3, 4, 58, 11);     /* re-scroll current channel name */
 
     /* setup up/down signal handler */
@@ -269,12 +271,20 @@ static void button_press_event(XButtonEvent *event)
         mouse_drag_home_y = y;
         break;
     case 2:            /* backlight indicator */
-        brightness_switch_backlight();
-        unmap_osd();
-        map_osd();
-        ui_update();
-        break; 
-    case 3:            /* previous monitor */
+        if (brightness_set_method(BACKLIGHT)) {
+            unmap_osd();
+            map_osd();
+            ui_update();
+        }
+        break;
+    case 3:            /* gamma indicator */
+        if (brightness_set_method(GAMMA)) {
+            unmap_osd();
+            map_osd();
+            ui_update();
+        }
+        break;
+   case 8:            /* previous monitor */
         brightness_set_monitor_rel(-1); 
         blit_string(brightness_get_monitor_name());
         scroll_text(3, 4, 57, true);
@@ -282,7 +292,7 @@ static void button_press_event(XButtonEvent *event)
         map_osd();
         ui_update();
         break;
-    case 4:            /* next monitor */
+    case 9:            /* next monitor */
         brightness_set_monitor_rel(1);
         blit_string(brightness_get_monitor_name());
         scroll_text(3, 4, 57, true);

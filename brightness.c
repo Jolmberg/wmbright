@@ -42,17 +42,14 @@ static bool get_brightness_state(void);
 struct monitor_data {
     RROutput output;
     RRCrtc crtc;
-    bool has_backlight;
-    bool backlight_selected;
+    bool supported_methods[3];
+    enum method current_method;
     Atom backlight_atom;
     uint32_t min;                   /* Min backlight level */
     uint32_t max;                   /* Max backlight level */
     uint32_t level;                 /* Current backlight level */
     float normalised_level;         /* level, in [0, 1] */
     float actual_level;             /* normalised + global boost */
-    /* unsigned short red[100]; */
-    /* unsigned short green[100]; */
-    /* unsigned short blue[100]; */
     float gamma_red, gamma_green, gamma_blue;
     int gamma_size;
     XRRCrtcGamma *gamma;
@@ -72,9 +69,9 @@ struct monitor {
     struct monitor_data *data;
 };
 
-static char *methods[] = { "Backlight", "Gamma" };
+static char *methods[] = { "None", "Backlight", "Gamma" };
 static struct monitor *monitors;
-static int cur_monitor = 0;
+static int cur_monitor;
 static int n_monitors;
 static bool needs_update;
 static Display *display;
@@ -138,8 +135,7 @@ static bool get_backlight_property(struct monitor_data *m)
             if (verbose)
                 printf("Output supports backlight, range: (%d, %d), current: %d\n",
                        m->min, m->max, m->level);
-            m->has_backlight = true;
-            m->backlight_selected = true;
+            m->supported_methods[BACKLIGHT] = true;
             Xfree(a);
             return true;
         }
@@ -171,82 +167,16 @@ void set_backlight_level(struct monitor_data *m)
                             PropModeReplace, (unsigned char *)(&m->level), 1);
 }
 
-void *do_set_brightness_level(void *data)
+void brightness_to_gamma(struct monitor_data *m)
 {
-    struct monitor_data *m = (struct monitor_data *)data;
-    do {
-        m->actual_level = CLAMP(m->normalised_level + global_offset, 0.0, 1.0);
-        m->brightness = CLAMP(100 * m->actual_level, 0, 100);
-
-        pthread_mutex_lock(&m->mutex);
-        if (m->last_set_brightness == m->brightness) {
-            m->thread_active = false;
-            pthread_mutex_unlock(&m->mutex);
-            return NULL;
-        }
-        pthread_mutex_unlock(&m->mutex);
-        
-        m->last_set_brightness = m->brightness;
-        XRRCrtcGamma *source = m->gamma_precalc[m->last_set_brightness]; // +
-        /* memcpy(m->gamma->red, source->red, sizeof(unsigned short) * m->gamma_size); */
-        /* memcpy(m->gamma->green, source->green, sizeof(unsigned short) * m->gamma_size); */
-        /* memcpy(m->gamma->blue, source->blue, sizeof(unsigned short) * m->gamma_size); */
-        XRRSetCrtcGamma(display, m->crtc, source); //m->gamma);
-        XFlush(display);
-        usleep(200000);
-    } while (true);
-}
-
-void set_brightness_level(struct monitor_data *m)
-{
-    pthread_t thread;
-
-    pthread_mutex_lock(&m->mutex);
-    m->actual_level = CLAMP(m->normalised_level + global_offset, 0.0, 1.0);
-    m->brightness = CLAMP(100 * m->actual_level, 0, 100);
-    if (m->thread_active || (m->last_set_brightness == m->brightness)) {
-        pthread_mutex_unlock(&m->mutex);
-        return;
-    }
-    m->thread_active = true;
-    pthread_mutex_unlock(&m->mutex);
-    pthread_create(&thread, NULL, do_set_brightness_level, (void *)m);
-}
-
-void brightness_to_gamma(struct monitor_data *m, float gamma, XRRCrtcGamma *target)
-{
-    if (!m->crtc) {
-        return;
-    }
     int i, shift;
     float gammaRed;
     float gammaGreen;
     float gammaBlue;
-    float brightness = gamma; //brightness_in / 100.0;
+    float brightness = m->last_set_brightness / 100.0;
 
     if (!m->gamma) {
-        m->gamma_size = XRRGetCrtcGammaSize(display, m->crtc);
-
-        if (!m->gamma_size) {
-            fprintf(stderr, "Gamma size is 0.\n");
-            return;
-        }
-
-        /*
-         * The gamma-correction lookup table managed through XRR[GS]etCrtcGamma
-         * is 2^n in size, where 'n' is the number of significant bits in
-         * the X Color.  Because an X Color is 16 bits, size cannot be larger
-         * than 2^16.
-         */
-        if (m->gamma_size > 65536) {
-            fprintf(stderr, "Gamma correction table is impossibly large.\n");
-            return;
-        }
-
-        m->gamma = XRRAllocGamma(m->gamma_size);
-    }
-    if (!m->gamma) {
-        fprintf(stderr, "Gamma allocation failed.\n");
+        fprintf(stderr, "wmbright:error: Gamma struct was not allocated!\n");
         return;
     }
 
@@ -271,40 +201,68 @@ void brightness_to_gamma(struct monitor_data *m, float gamma, XRRCrtcGamma *targ
     
     for (i = 0; i < m->gamma_size; i++) {
         if (gammaRed == 1.0 && brightness == 1.0)
-            target->red[i] = i;
+            m->gamma->red[i] = i;
         else
-            target->red[i] = fmin(pow((double)i/(double)(m->gamma_size - 1),
+            m->gamma->red[i] = fmin(pow((double)i/(double)(m->gamma_size - 1),
                                      gammaRed) * brightness,
                                  1.0) * (double)(m->gamma_size - 1);
-        target->red[i] <<= shift;
+        m->gamma->red[i] <<= shift;
         
         if (gammaGreen == 1.0 && brightness == 1.0)
-            target->green[i] = i;
+            m->gamma->green[i] = i;
         else
-            target->green[i] = fmin(pow((double)i/(double)(m->gamma_size - 1),
+            m->gamma->green[i] = fmin(pow((double)i/(double)(m->gamma_size - 1),
                                        gammaGreen) * brightness,
                                    1.0) * (double)(m->gamma_size - 1);
-        target->green[i] <<= shift;
+        m->gamma->green[i] <<= shift;
         
         if (gammaBlue == 1.0 && brightness == 1.0)
-            target->blue[i] = i;
+            m->gamma->blue[i] = i;
         else
-            target->blue[i] = fmin(pow((double)i/(double)(m->gamma_size - 1),
+            m->gamma->blue[i] = fmin(pow((double)i/(double)(m->gamma_size - 1),
                                       gammaBlue) * brightness,
                                   1.0) * (double)(m->gamma_size - 1);
-        target->blue[i] <<= shift;
+        m->gamma->blue[i] <<= shift;
     }
-    memcpy(m->gamma->red, target->red, sizeof(unsigned short) * m->gamma_size);
-    memcpy(m->gamma->green, target->green, sizeof(unsigned short) * m->gamma_size);
-    memcpy(m->gamma->blue, target->blue, sizeof(unsigned short) * m->gamma_size);
-    /* for (int i = 0; i <= m->gamma_size; i++) { */
-    /*     m->gamma->red[i] = target->red[i]; */
-    /*     m->gamma->green[i] = target->green[i]; */
-    /*     m->gamma->blue[i] = target->blue[i]; */
-    /* } */
-    //XRRSetCrtcGamma(display, m->crtc, m->gamma);
+}
 
-    //free(gamma);
+void *do_set_brightness_level(void *data)
+{
+    struct monitor_data *m = (struct monitor_data *)data;
+    do {
+        m->actual_level = CLAMP(m->normalised_level + global_offset, 0.0, 1.0);
+        m->brightness = CLAMP(100 * m->actual_level, 0, 100);
+
+        pthread_mutex_lock(&m->mutex);
+        if (m->last_set_brightness == m->brightness) {
+            m->thread_active = false;
+            pthread_mutex_unlock(&m->mutex);
+            return NULL;
+        }
+        pthread_mutex_unlock(&m->mutex);
+
+        m->last_set_brightness = m->brightness;
+        brightness_to_gamma(m);
+        XRRSetCrtcGamma(display, m->crtc, m->gamma);
+        XFlush(display);
+        usleep(100000);
+    } while (true);
+}
+
+void set_brightness_level(struct monitor_data *m)
+{
+    pthread_t thread;
+
+    pthread_mutex_lock(&m->mutex);
+    m->actual_level = CLAMP(m->normalised_level + global_offset, 0.0, 1.0);
+    m->brightness = CLAMP(100 * m->actual_level, 0, 100);
+    if (m->thread_active || (m->last_set_brightness == m->brightness)) {
+        pthread_mutex_unlock(&m->mutex);
+        return;
+    }
+    m->thread_active = true;
+    pthread_mutex_unlock(&m->mutex);
+    pthread_create(&thread, NULL, do_set_brightness_level, (void *)m);
 }
 
 /* Returns the index of the last value in an array < 0xffff */
@@ -318,31 +276,42 @@ int find_last_non_clamped(CARD16 array[], int size)
     return 0;
 }
 
-/* At this point we don't just get the current gamma values. We precalculate
-   all 100 possible gamma structs. */
- 
+/* Allocate the gamma struct and leave it for later */
+bool get_gamma_property(struct monitor_data *m)
+{
+    m->gamma_size = XRRGetCrtcGammaSize(display, m->crtc);
+    if (verbose)
+        printf("Gamma size: %d\n", m->gamma_size);
+    if (!m->gamma_size) {
+        fprintf(stderr, "wmbright:warning: Failed to get size of gamma for output %ld\n", m->output);
+        return false;
+    }
+
+    m->gamma = XRRGetCrtcGamma(display, m->crtc);
+    if (!m->gamma) {
+        fprintf(stderr, "wmbright:warning: Failed to get gamma for output %ld\n", m->output);
+        return false;
+    }
+    m->supported_methods[GAMMA] = true;
+    return true;
+}
+
+/* Reallocate the gamma struct and calculate brightness from it */
+/* Assumes that gamma_size has not changed, which would be really weird */
 void get_gamma_values(struct monitor_data *m)
 {
-    //XRRCrtcGamma *gamma;
+    XRRFreeGamma(m->gamma);
+    m->gamma = XRRGetCrtcGamma(display, m->crtc);
+    if (!m->gamma) {
+        fprintf(stderr, "wmbright:warning: Failed to get gamma for output %ld\n", m->output);
+        return;
+    }
+
     double i1, v1, i2, v2;
     int middle, last_best, last_red, last_green, last_blue;
     CARD16 *best_array;
     float brightness;
 
-    m->gamma_size = XRRGetCrtcGammaSize(display, m->crtc);
-    if (verbose)
-        printf("Gamma size: %d\n", m->gamma_size);
-    if (!m->gamma_size) {
-        fprintf(stderr, "Failed to get size of gamma for output %ld\n", m->output);
-        return;
-    }
-
-    m->gamma = XRRGetCrtcGamma(display, m->crtc);
-    if (!m->gamma) {
-        fprintf(stderr, "Failed to get gamma for output %ld\n", m->output);
-        return;
-    }
-            
     /*
      * Here is a bit tricky because gamma is a whole curve for each
      * color.  So, typically, we need to represent 3 * 256 values as 3 + 1
@@ -399,19 +368,6 @@ void get_gamma_values(struct monitor_data *m)
     }
     
     m->brightness = (100 * brightness) + 0.5;
-    
-    m->gamma_precalc = (XRRCrtcGamma **)malloc(sizeof(XRRCrtcGamma *) * 101);
-    //unsigned short *data = malloc(sizeof(unsigned short) * m->gamma_size * 3 * 100);
-    for (int i = 0; i <= 100; i++) {
-        m->gamma_precalc[i] = XRRGetCrtcGamma(display, m->crtc);
-        /* m->gamma_precalc[i].red = data + (i * m->gamma_size * 3); */
-        /* m->gamma_precalc[i].green = data + (i * m->gamma_size * 3) + m->gamma_size; */
-        /* m->gamma_precalc[i].blue = data + (i * m->gamma_size * 3) + m->gamma_size * 2; */
-        /* m->gamma_precalc[i].red = (unsigned short *)malloc(sizeof(unsigned short) * m->gamma_size); */
-        /* m->gamma_precalc[i].green = (unsigned short *)malloc(sizeof(unsigned short) * m->gamma_size); */
-        /* m->gamma_precalc[i].blue = (unsigned short *)malloc(sizeof(unsigned short) * m->gamma_size); */
-        brightness_to_gamma(m, i*0.01, m->gamma_precalc[i]); // + i
-    }
 }
 
 void brightness_init(Display *x_display, bool set_verbose)
@@ -435,6 +391,7 @@ void brightness_init(Display *x_display, bool set_verbose)
     monitors = (struct monitor *)malloc((n_monitors + 1) * sizeof(struct monitor));
 
     /* Use the first entry for the global controller */
+    cur_monitor = 0;
     monitors[0].name[0] = 'A';
     monitors[0].name[1] = 'L';
     monitors[0].name[2] = 'L';
@@ -445,7 +402,9 @@ void brightness_init(Display *x_display, bool set_verbose)
     monitors[0].data->level = 0;
     monitors[0].data->min = 0;
     monitors[0].data->max = 100;
-    monitors[0].data->has_backlight = false;
+    monitors[0].data->supported_methods[0] = true;
+    monitors[0].data->supported_methods[1] = false;
+    monitors[0].data->supported_methods[2] = false;
     global_offset = 0.0;
 
     int i2 = 0;
@@ -480,20 +439,21 @@ void brightness_init(Display *x_display, bool set_verbose)
         if (!m->is_clone) {
             m->data = (struct monitor_data *)malloc(sizeof(struct monitor_data));
             struct monitor_data *d = m->data;
-            d->has_backlight = false;
-            d->backlight_selected = false;
+            d->supported_methods[0] = true;
+            d->supported_methods[1] = false;
+            d->supported_methods[2] = false;
+            d->current_method = NONE;
             d->crtc = oi->crtc;
             d->output = screen->outputs[i];
             pthread_mutex_init(&d->mutex, NULL);
             d->thread_active = false;
-            get_backlight_property(d);
-            d->gamma = NULL;
+            if (get_backlight_property(d))
+                d->current_method = BACKLIGHT;
+            if (get_gamma_property(d) && (d->current_method == NONE))
+                d->current_method = GAMMA;
+
             XRRCrtcInfo *ci = XRRGetCrtcInfo(display, screen, d->crtc);
             d->dim = (struct dimensions){ ci->x, ci->y, ci->width, ci->height };
-            /* d->x = ci->x; */
-            /* d->y = ci->y; */
-            /* d->width = ci->width; */
-            /* d->height = ci->height; */
             XRRFreeCrtcInfo(ci);
         }
         XRRFreeOutputInfo(oi);
@@ -516,9 +476,6 @@ void brightness_reinit() {
     for (int i = 0; i < n_monitors; i++) {
         if (i > 0) {
             XRRFreeGamma(monitors[i].data->gamma);
-            for (int j = 0; j <= 100; j++) {
-                XRRFreeGamma(monitors[i].data->gamma_precalc[j]);
-            }
         }
         free(monitors[i].data);
     }
@@ -540,15 +497,14 @@ static bool get_brightness_state(void)
         struct monitor_data *m = monitors[i].data;
         if (m->crtc == 0)
             continue;
-        if (m->has_backlight) {
+        if (m->supported_methods[BACKLIGHT])
             get_backlight_level(m);
-        }
-        get_gamma_values(m);
-        if (m->has_backlight && m->backlight_selected) {
+        if (m->supported_methods[GAMMA])
+            get_gamma_values(m);
+        if (m->current_method == BACKLIGHT)
             m->normalised_level = ((float)(m->level - m->min)) / (m->max - m->min);
-        } else {
+        else if (m->current_method == GAMMA)
             m->normalised_level = (float)m->brightness / 100.0;
-        }
         m->actual_level = m->normalised_level;
     }
     XRRFreeScreenResources(screen);
@@ -569,9 +525,9 @@ static void set_brightness_state(void)
         if (monitors[i].is_clone || (monitors[i].data->crtc == 0))
             continue;
         struct monitor_data *m = monitors[i].data;
-        if (m->has_backlight && m->backlight_selected) {
+        if (m->current_method == BACKLIGHT) {
             set_backlight_level(m);
-        } else {
+        } else if (m->current_method == GAMMA) {
             set_brightness_level(m);
         }
     }
@@ -643,25 +599,15 @@ int brightness_get_percent(void)
     }
 }
 
-/* float brightness_get_level_by_crtc(RRCrtc crtc) */
-/* { */
-/*     for (int i = 1; i < n_monitors; i++) { */
-/*         if (monitors[i].data->crtc == crtc) { */
-/*             return CLAMP(monitors[i].data->normalised_level + global_offset, 0.0, 1.0); */
-/*         } */
-/*     } */
-/*     return -10; */
-/* } */
-
 void brightness_set_level(float level)
 {
     struct monitor_data *m = monitors[cur_monitor].data;
     if (cur_monitor > 0) {
         assert((level >= 0.0) && (level <= 1.0));
         m->normalised_level = level;
-        if (m->has_backlight && m->backlight_selected) {
+        if (m->current_method == BACKLIGHT) {
             m->level = CLAMP(m->min + (m->max - m->min) * m->normalised_level, m->min, m->max);
-        } else {
+        } else if (m->current_method == GAMMA) {
             m->brightness = CLAMP(100 * level, 0, 100);
         }
     } else {
@@ -676,9 +622,9 @@ void brightness_set_level_rel(float delta_level)
     if (cur_monitor > 0) {
         m->normalised_level += delta_level;
         m->normalised_level = CLAMP(m->normalised_level, 0.0, 1.0);
-        if (m->has_backlight && m->backlight_selected) {
+        if (m->current_method == BACKLIGHT) {
             m->level = CLAMP(m->min + (m->max - m->min) * m->normalised_level, m->min, m->max);
-        } else {
+        } else if (m->current_method == GAMMA) {
             m->brightness = 100 * m->normalised_level;
         }
     } else {
@@ -727,28 +673,24 @@ RRCrtc brightness_get_crtc(void)
     return monitors[cur_monitor].data->crtc;
 }
 
-bool brightness_has_backlight(void)
+bool brightness_has_method(enum method method)
 {
-    return monitors[cur_monitor].data->has_backlight;
+    return monitors[cur_monitor].data->supported_methods[method];
 }
 
-bool brightness_backlight_selected(void)
+enum method brightness_get_method(void)
 {
-    return monitors[cur_monitor].data->backlight_selected;
+    return monitors[cur_monitor].data->current_method;
 }
 
-void brightness_switch_backlight(void)
+bool brightness_set_method(enum method method)
 {
     struct monitor_data *m = monitors[cur_monitor].data;
-    if (m->has_backlight) {
-        m->backlight_selected = !m->backlight_selected;
-        if (m->backlight_selected) {
-            m->normalised_level = ((float)(m->level - m->min)) / (m->max - m->min);
-        } else {
-            m->normalised_level = (float)m->brightness / 100.0;
-        }
-        m->actual_level = m->normalised_level;
+    if (m->supported_methods[method]) {
+        m->current_method = method;
+        return true;
     }
+    return false;
 }
 
 void brightness_ready(void)
@@ -770,18 +712,12 @@ void brightness_unready(void)
     }
 }
 
-char *brightness_get_method(int monitor)
+char *brightness_get_method_name(int monitor)
 {
     if (monitor < 0)
         monitor = cur_monitor;
     struct monitor_data *m = monitors[monitor].data;
-    if (m->has_backlight && m->backlight_selected) {
-        return methods[0];
-    } else {
-        return methods[1];
-    }
-    printf("This is bad!\n");
-    return NULL;
+    return methods[m->current_method];
 }
 
 int brightness_get_monitor_count(void)

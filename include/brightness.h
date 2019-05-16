@@ -24,6 +24,12 @@ struct dimensions {
     int x, y, width, height;
 };
 
+enum method {
+    NONE = 0,
+    BACKLIGHT = 1,
+    GAMMA = 2
+};
+
 void brightness_init(Display *display, bool set_verbose);
 void brightness_reinit(void);
 bool brightness_is_changed(void);
@@ -35,12 +41,12 @@ const char *brightness_get_monitor_name(void);
 void brightness_set_monitor_rel(int delta_monitor);
 int brightness_get_current_monitor(void);
 RRCrtc brightness_get_crtc(void);
-bool brightness_has_backlight(void);
-bool brightness_backlight_selected(void);
-void brightness_switch_backlight(void);
 void brightness_ready(void);
 void brightness_unready(void);
 int brightness_get_percent(void);
-char *brightness_get_method(int monitor);
+char *brightness_get_method_name(int monitor);
 int brightness_get_monitor_count(void);
 struct dimensions brightness_get_dimensions(int monitor);
+bool brightness_set_method(enum method method);
+enum method brightness_get_method(void);
+bool brightness_has_method(enum method method);
