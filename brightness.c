@@ -1,3 +1,25 @@
+/* WMBright -- a brightness control using randr.
+ * Copyright (C) 2000, 2001
+ *     Daniel Richard G. <skunk@mit.edu>,
+ *     timecop <timecop@japan.co.jp>
+ * Copyright (C) 2019
+ *     Johannes Holmberg <johannes@update.uu.se>
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ */
+
 #include <stdio.h>
 #include <assert.h>
 #include <X11/Xlibint.h>
@@ -26,7 +48,7 @@ struct monitor_data {
     uint32_t min;                   /* Min backlight level */
     uint32_t max;                   /* Max backlight level */
     uint32_t level;                 /* Current backlight level */
-    float normalised_level;	        /* level, in [0, 1] */
+    float normalised_level;         /* level, in [0, 1] */
     float actual_level;             /* normalised + global boost */
     /* unsigned short red[100]; */
     /* unsigned short green[100]; */
@@ -69,7 +91,7 @@ static bool verbose;
 
 /* static int mixer_callback(__attribute__((unused)) snd_mixer_t *ctl, */
 /*                           unsigned int mask, */
-/* 			  snd_mixer_elem_t *elem) */
+/*            snd_mixer_elem_t *elem) */
 /* { */
 /*     if (mask & SND_CTL_EVENT_MASK_ADD) { */
 /*         snd_mixer_elem_set_callback(elem, elem_callback); */
@@ -197,9 +219,9 @@ void brightness_to_gamma(struct monitor_data *m, float gamma, XRRCrtcGamma *targ
         return;
     }
     int i, shift;
-	float gammaRed;
-	float gammaGreen;
-	float gammaBlue;
+    float gammaRed;
+    float gammaGreen;
+    float gammaBlue;
     float brightness = gamma; //brightness_in / 100.0;
 
     if (!m->gamma) {
@@ -223,10 +245,10 @@ void brightness_to_gamma(struct monitor_data *m, float gamma, XRRCrtcGamma *targ
 
         m->gamma = XRRAllocGamma(m->gamma_size);
     }
-	if (!m->gamma) {
-	    fprintf(stderr, "Gamma allocation failed.\n");
-	    return;
-	}
+    if (!m->gamma) {
+        fprintf(stderr, "Gamma allocation failed.\n");
+        return;
+    }
 
     /*
      * The hardware color lookup table has a number of significant
@@ -236,42 +258,42 @@ void brightness_to_gamma(struct monitor_data *m, float gamma, XRRCrtcGamma *targ
      */
     shift = 16 - (ffs(m->gamma_size) - 1);
 
-	if (m->gamma_red == 0.0)
-	    m->gamma_red = 1.0;
-	if (m->gamma_green == 0.0)
-	    m->gamma_green = 1.0;
-	if (m->gamma_blue == 0.0)
-	    m->gamma_blue = 1.0;
+    if (m->gamma_red == 0.0)
+        m->gamma_red = 1.0;
+    if (m->gamma_green == 0.0)
+        m->gamma_green = 1.0;
+    if (m->gamma_blue == 0.0)
+        m->gamma_blue = 1.0;
 
-	gammaRed = 1.0 / m->gamma_red;
-	gammaGreen = 1.0 / m->gamma_green;
-	gammaBlue = 1.0 / m->gamma_blue;
+    gammaRed = 1.0 / m->gamma_red;
+    gammaGreen = 1.0 / m->gamma_green;
+    gammaBlue = 1.0 / m->gamma_blue;
     
-	for (i = 0; i < m->gamma_size; i++) {
-	    if (gammaRed == 1.0 && brightness == 1.0)
+    for (i = 0; i < m->gamma_size; i++) {
+        if (gammaRed == 1.0 && brightness == 1.0)
             target->red[i] = i;
-	    else
+        else
             target->red[i] = fmin(pow((double)i/(double)(m->gamma_size - 1),
                                      gammaRed) * brightness,
                                  1.0) * (double)(m->gamma_size - 1);
-	    target->red[i] <<= shift;
+        target->red[i] <<= shift;
         
-	    if (gammaGreen == 1.0 && brightness == 1.0)
+        if (gammaGreen == 1.0 && brightness == 1.0)
             target->green[i] = i;
-	    else
+        else
             target->green[i] = fmin(pow((double)i/(double)(m->gamma_size - 1),
                                        gammaGreen) * brightness,
                                    1.0) * (double)(m->gamma_size - 1);
-	    target->green[i] <<= shift;
+        target->green[i] <<= shift;
         
-	    if (gammaBlue == 1.0 && brightness == 1.0)
+        if (gammaBlue == 1.0 && brightness == 1.0)
             target->blue[i] = i;
-	    else
+        else
             target->blue[i] = fmin(pow((double)i/(double)(m->gamma_size - 1),
                                       gammaBlue) * brightness,
                                   1.0) * (double)(m->gamma_size - 1);
-	    target->blue[i] <<= shift;
-	}
+        target->blue[i] <<= shift;
+    }
     memcpy(m->gamma->red, target->red, sizeof(unsigned short) * m->gamma_size);
     memcpy(m->gamma->green, target->green, sizeof(unsigned short) * m->gamma_size);
     memcpy(m->gamma->blue, target->blue, sizeof(unsigned short) * m->gamma_size);
@@ -280,9 +302,9 @@ void brightness_to_gamma(struct monitor_data *m, float gamma, XRRCrtcGamma *targ
     /*     m->gamma->green[i] = target->green[i]; */
     /*     m->gamma->blue[i] = target->blue[i]; */
     /* } */
-	//XRRSetCrtcGamma(display, m->crtc, m->gamma);
+    //XRRSetCrtcGamma(display, m->crtc, m->gamma);
 
-	//free(gamma);
+    //free(gamma);
 }
 
 /* Returns the index of the last value in an array < 0xffff */

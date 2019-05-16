@@ -77,13 +77,13 @@ The config file:
 
 1 = yes, 0 = no
 
-mousewheel=1			# use mousewheel?
-scrolltext=1			# scroll the system messages?
-osd=1				# display OSD?
-osdcolor=green			# color of the OSD (from rgb.txt)
-wheelbtn1=4			# which mousewheel button is "up"
-wheelbtn2=5			# which mousewheel button is "down"
-wheelstep=3			# the step for mousewheel adjustment
+mousewheel=1            # use mousewheel?
+scrolltext=1            # scroll the system messages?
+osd=1                   # display OSD?
+osdcolor=green          # color of the OSD (from rgb.txt)
+wheelbtn1=4             # which mousewheel button is "up"
+wheelbtn2=5             # which mousewheel button is "down"
+wheelstep=3             # the step for mousewheel adjustment
 
 Most defaults are good for normal use, and if there is no config file,
 the settings you see above are used. If you want to hack on a config file,

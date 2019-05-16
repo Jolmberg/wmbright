@@ -1,7 +1,9 @@
-/* WMix 3.0 -- a mixer using the OSS mixer API.
+/* WMBright -- a brightness control using randr.
  * Copyright (C) 2000, 2001
- *	Daniel Richard G. <skunk@mit.edu>,
- *	timecop <timecop@japan.co.jp>
+ *     Daniel Richard G. <skunk@mit.edu>,
+ *     timecop <timecop@japan.co.jp>
+ * Copyright (C) 2019
+ *     Johannes Holmberg <johannes@update.uu.se>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -31,7 +33,6 @@ void brightness_set_level_rel(float delta_level);
 void brightness_tick(void);
 const char *brightness_get_monitor_name(void);
 void brightness_set_monitor_rel(int delta_monitor);
-//float brightness_get_level_by_crtc(RRCrtc crtc);
 int brightness_get_current_monitor(void);
 RRCrtc brightness_get_crtc(void);
 bool brightness_has_backlight(void);

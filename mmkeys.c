@@ -1,3 +1,25 @@
+/* WMBright -- a brightness control using randr.
+ * Copyright (C) 2014 Christophe CURIS for the WindowMaker Team
+ * Copyright (C) 2019 Johannes Holmberg, johannes@update.uu.se
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ */
+/*
+ * mmkeys.c: functions related to grabing the Multimedia Keys on keyboard
+ */
+
 #include <stdio.h>
 #include <string.h>
 
@@ -16,36 +38,36 @@ struct multimedia_keys mmkeys;
 
 /* The list of keys we're interrested in */
 static const struct {
-	KeySym  symbol;
-	KeyCode *store;
-	const char *name;
+    KeySym  symbol;
+    KeyCode *store;
+    const char *name;
 } key_list[] = {
-	{ XF86XK_MonBrightnessUp, &mmkeys.brightness_up, "BrightnessUp" },
-	{ XF86XK_MonBrightnessDown, &mmkeys.brightness_down, "BrightnessDown" }
+    { XF86XK_MonBrightnessUp, &mmkeys.brightness_up, "BrightnessUp" },
+    { XF86XK_MonBrightnessDown, &mmkeys.brightness_down, "BrightnessDown" }
 };
 
 /* The modifiers that should not have impact on the key grabbed */
 static const struct {
-	KeySym symbol;
-	const char *name;
+    KeySym symbol;
+    const char *name;
 } modifier_symbol[] = {
-	{ XK_Caps_Lock, "CapsLock" },
-	{ XK_Num_Lock,  "NumLock"  }
+    { XK_Caps_Lock, "CapsLock" },
+    { XK_Num_Lock,  "NumLock"  }
 };
 
 typedef struct {
-	int count;
-	unsigned int list[1 << lengthof(modifier_symbol)];
+    int count;
+    unsigned int list[1 << lengthof(modifier_symbol)];
 } modifier_masks;
 
 /* The structure to track grab installation for errors */
 static struct mmkey_track {
-	XErrorHandler previous_handler;
-	struct {
-		const char *key_name;
-		unsigned long serial[1 << lengthof(modifier_symbol)];
-		Bool displayed;
-	} request[lengthof(key_list)];
+    XErrorHandler previous_handler;
+    struct {
+        const char *key_name;
+        unsigned long serial[1 << lengthof(modifier_symbol)];
+        Bool displayed;
+    } request[lengthof(key_list)];
 } *track_install = NULL;
 
 /* Local functions */
@@ -62,42 +84,42 @@ static int  mmkey_catch_grab_error(Display *display, XErrorEvent *event);
  */
 void mmkey_install(Display *display)
 {
-	modifier_masks mod_masks;
-	struct mmkey_track install_info;
-	Window root_window;
-	int i, j;
+    modifier_masks mod_masks;
+    struct mmkey_track install_info;
+    Window root_window;
+    int i, j;
 
-	mmkey_build_modifier_list(display, &mod_masks);
+    mmkey_build_modifier_list(display, &mod_masks);
 
-	root_window = DefaultRootWindow(display);
+    root_window = DefaultRootWindow(display);
 
-	memset(&install_info, 0, sizeof(install_info));
-	install_info.previous_handler = XSetErrorHandler(mmkey_catch_grab_error);
-	track_install = &install_info;
-	for (i = 0; i < lengthof(key_list); i++) {
-		KeyCode key;
+    memset(&install_info, 0, sizeof(install_info));
+    install_info.previous_handler = XSetErrorHandler(mmkey_catch_grab_error);
+    track_install = &install_info;
+    for (i = 0; i < lengthof(key_list); i++) {
+        KeyCode key;
 
-		key = XKeysymToKeycode(display, key_list[i].symbol);
-		*(key_list[i].store) = key;
+        key = XKeysymToKeycode(display, key_list[i].symbol);
+        *(key_list[i].store) = key;
 
-		if (key == None)
-			continue;
+        if (key == None)
+            continue;
 
-		install_info.request[i].key_name = key_list[i].name;
-		install_info.request[i].displayed = False;
-		for (j = 0; j < mod_masks.count; j++) {
-			install_info.request[i].serial[j] = NextRequest(display);
-			XGrabKey(display, key, mod_masks.list[j], root_window,
-			         False, GrabModeAsync, GrabModeAsync);
-		}
-		if (config.verbose)
-			printf("Found multimedia key: %s\n", key_list[i].name);
-	}
+        install_info.request[i].key_name = key_list[i].name;
+        install_info.request[i].displayed = False;
+        for (j = 0; j < mod_masks.count; j++) {
+            install_info.request[i].serial[j] = NextRequest(display);
+            XGrabKey(display, key, mod_masks.list[j], root_window,
+                     False, GrabModeAsync, GrabModeAsync);
+        }
+        if (config.verbose)
+            printf("Found multimedia key: %s\n", key_list[i].name);
+    }
 
-	/* The grab may fail, so make sure it is reported now */
-	XSync(display, False);
-	XSetErrorHandler(install_info.previous_handler);
-	track_install = NULL;
+    /* The grab may fail, so make sure it is reported now */
+    XSync(display, False);
+    XSetErrorHandler(install_info.previous_handler);
+    track_install = NULL;
 }
 
 /*
@@ -105,68 +127,68 @@ void mmkey_install(Display *display)
  */
 static void mmkey_build_modifier_list(Display *display, modifier_masks *result)
 {
-	XModifierKeymap *mods;
-	KeyCode mod_code[lengthof(modifier_symbol)];
-	unsigned int mod_mask[lengthof(modifier_symbol)];
-	char buffer[256];
-	int nb_modifiers;
-	int i, j, k;
+    XModifierKeymap *mods;
+    KeyCode mod_code[lengthof(modifier_symbol)];
+    unsigned int mod_mask[lengthof(modifier_symbol)];
+    char buffer[256];
+    int nb_modifiers;
+    int i, j, k;
 
-	/* Get the bitmask associated with the modifiers */
-	for (i = 0; i < lengthof(modifier_symbol); i++) {
-		mod_code[i] = XKeysymToKeycode(display, modifier_symbol[i].symbol);
-		mod_mask[i] = 0L;
-	}
+    /* Get the bitmask associated with the modifiers */
+    for (i = 0; i < lengthof(modifier_symbol); i++) {
+        mod_code[i] = XKeysymToKeycode(display, modifier_symbol[i].symbol);
+        mod_mask[i] = 0L;
+    }
 
-	mods = XGetModifierMapping(display);
-	for (i = 0; i < 8; i++) {
-		for (j = 0; j < mods->max_keypermod; j++) {
-			KeyCode key_mod;
+    mods = XGetModifierMapping(display);
+    for (i = 0; i < 8; i++) {
+        for (j = 0; j < mods->max_keypermod; j++) {
+            KeyCode key_mod;
 
-			key_mod = mods->modifiermap[i * mods->max_keypermod + j];
-			for (k = 0; k < lengthof(mod_code); k++) {
-				if ((mod_code[k] != None) && (key_mod == mod_code[k]))
-					mod_mask[k] |= 1 << i;
-			}
-		}
-	}
-	XFreeModifiermap(mods);
+            key_mod = mods->modifiermap[i * mods->max_keypermod + j];
+            for (k = 0; k < lengthof(mod_code); k++) {
+                if ((mod_code[k] != None) && (key_mod == mod_code[k]))
+                    mod_mask[k] |= 1 << i;
+            }
+        }
+    }
+    XFreeModifiermap(mods);
 
-	/* Count the number of modifiers found (and display the list to the user) */
-	if (config.verbose)
-		strcpy(buffer, "Found key modifiers: ");
+    /* Count the number of modifiers found (and display the list to the user) */
+    if (config.verbose)
+        strcpy(buffer, "Found key modifiers: ");
 
-	nb_modifiers = 0;
-	for (i = 0; i < lengthof(modifier_symbol); i++) {
-		if (mod_mask[i] != 0) {
-			if (config.verbose) {
-				if (nb_modifiers > 0)
-					strcat(buffer, ", ");
-				strcat(buffer, modifier_symbol[i].name);
-			}
-			nb_modifiers++;
-		}
-	}
-	if (config.verbose) {
-		if (nb_modifiers == 0)
-			strcat(buffer, "None");
-		puts(buffer);
-	}
+    nb_modifiers = 0;
+    for (i = 0; i < lengthof(modifier_symbol); i++) {
+        if (mod_mask[i] != 0) {
+            if (config.verbose) {
+                if (nb_modifiers > 0)
+                    strcat(buffer, ", ");
+                strcat(buffer, modifier_symbol[i].name);
+            }
+            nb_modifiers++;
+        }
+    }
+    if (config.verbose) {
+        if (nb_modifiers == 0)
+            strcat(buffer, "None");
+        puts(buffer);
+    }
 
-	/* Build the list of possible combinations of modifiers */
-	result->count = 1 << nb_modifiers;
-	for (i = 0; i < lengthof(result->list); i++)
-		result->list[i] = 0L;
-	k = 1;
-	for (i = 0; i < lengthof(mod_mask); i++) {
-		if (mod_mask[i] != 0) {
-			for (j = 1; j < result->count; j++)
-				if (j & k)
-					result->list[j] |= mod_mask[i];
+    /* Build the list of possible combinations of modifiers */
+    result->count = 1 << nb_modifiers;
+    for (i = 0; i < lengthof(result->list); i++)
+        result->list[i] = 0L;
+    k = 1;
+    for (i = 0; i < lengthof(mod_mask); i++) {
+        if (mod_mask[i] != 0) {
+            for (j = 1; j < result->count; j++)
+                if (j & k)
+                    result->list[j] |= mod_mask[i];
 
-			k <<= 1;
-		}
-	}
+            k <<= 1;
+        }
+    }
 }
 
 /*
@@ -177,25 +199,25 @@ static void mmkey_build_modifier_list(Display *display, modifier_masks *result)
  */
 static int mmkey_catch_grab_error(Display *display, XErrorEvent *event)
 {
-	int i, j;
+    int i, j;
 
-	if ((event->error_code == BadAccess) && (event->request_code == X_GrabKey)) {
-		for (i = 0; i < lengthof(track_install->request); i++) {
-			for (j = 0; j < lengthof(track_install->request[i].serial); j++) {
-				if (track_install->request[i].serial[j] == 0L)
-					break;
-				if (event->serial == track_install->request[i].serial[j]) {
-					if (!track_install->request[i].displayed) {
-						fprintf(stderr, "wmix:warning: could not grab key %s, is another application using it?\n",
-						        track_install->request[i].key_name);
-						track_install->request[i].displayed = True;
-					}
-					return 0;
-				}
-			}
-		}
-	}
+    if ((event->error_code == BadAccess) && (event->request_code == X_GrabKey)) {
+        for (i = 0; i < lengthof(track_install->request); i++) {
+            for (j = 0; j < lengthof(track_install->request[i].serial); j++) {
+                if (track_install->request[i].serial[j] == 0L)
+                    break;
+                if (event->serial == track_install->request[i].serial[j]) {
+                    if (!track_install->request[i].displayed) {
+                        fprintf(stderr, "wmbright:warning: could not grab key %s, is another application using it?\n",
+                                track_install->request[i].key_name);
+                        track_install->request[i].displayed = True;
+                    }
+                    return 0;
+                }
+            }
+        }
+    }
 
-	/* That's not an XGrabKey known issue, let the default handler manage this */
-	return track_install->previous_handler(display, event);
+    /* That's not an XGrabKey known issue, let the default handler manage this */
+    return track_install->previous_handler(display, event);
 }

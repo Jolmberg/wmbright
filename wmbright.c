@@ -1,4 +1,8 @@
 /* WMBright -- a brightness control using randr.
+ * Copyright (C) 2000, 2001 timecop@japan.co.jp
+ * Mixer code in version 3.0 based on mixer api library by
+ * Daniel Richard G. <skunk@mit.edu>, which in turn was based on
+ * the mixer code in WMix 2.x releases.
  * Copyright (C) 2019 Johannes Holmberg, johannes@update.uu.se
  *
  * This program is free software; you can redistribute it and/or modify
@@ -103,20 +107,18 @@ int main(int argc, char **argv)
     new_osd(60);
 
     if (config.mmkeys)
-	    mmkey_install(display);
+        mmkey_install(display);
 
     config_release();
     blit_string("wmbright " VERSION);
     scroll_text(3, 4, 57, true);
     ui_update();
     /* add click regions */
-    add_region(1, 20, 18, 42, 42);	/* knob */
-    add_region(2, 3, 41, 14, 9);    /* backlight indicator */
-    add_region(3, 3, 50, 7, 10);    /* previous channel */
-    add_region(4, 10, 50, 7, 10);   /* next channel */
-    //add_region(5, 39, 14, 20, 7);	/* mute toggle */
-    //add_region(6, 4, 14, 13, 7);  /* rec toggle */
-    add_region(10, 3, 4, 58, 11);   /* re-scroll current channel name */
+    add_region(1, 20, 18, 42, 42);    /* knob */
+    add_region(2, 3, 41, 14, 9);      /* backlight indicator */
+    add_region(3, 3, 50, 7, 10);      /* previous channel */
+    add_region(4, 10, 50, 7, 10);     /* next channel */
+    add_region(10, 3, 4, 58, 11);     /* re-scroll current channel name */
 
     /* setup up/down signal handler */
     create_pid_file();
@@ -196,26 +198,26 @@ int main(int argc, char **argv)
 static void signal_catch(int sig)
 {
     switch (sig) {
-	case SIGUSR1:
+    case SIGUSR1:
         printf("sigusr1\n");
-	    brightness_set_level_rel(config.scrollstep);
-	    if (!osd_mapped())
+        brightness_set_level_rel(config.scrollstep);
+        if (!osd_mapped())
             map_osd();
-	    if (osd_mapped())
+        if (osd_mapped())
             update_osd(false);
-	    ui_update();
-	    idle_loop = 0;
-	    break;
-	case SIGUSR2:
+        ui_update();
+        idle_loop = 0;
+        break;
+    case SIGUSR2:
         printf("sigusr2\n");
-	    brightness_set_level_rel(-config.scrollstep);
-	    if (!osd_mapped())
+        brightness_set_level_rel(-config.scrollstep);
+        if (!osd_mapped())
             map_osd();
-	    if (osd_mapped())
+        if (osd_mapped())
             update_osd(false);
-	    ui_update();
-	    idle_loop = 0;
-	    break;
+        ui_update();
+        idle_loop = 0;
+        break;
     }
 }
 
@@ -228,28 +230,28 @@ static void button_press_event(XButtonEvent *event)
 
     /* handle wheel scrolling to adjust level */
     if (config.mousewheel) {
-	if (event->button == config.wheel_button_up) {
-        brightness_ready();
-	    brightness_set_level_rel(config.scrollstep);
-        brightness_unready();
-	    if (!osd_mapped())
-            map_osd();
-	    if (osd_mapped())
-            update_osd(false);
-	    ui_update();
-	    return;
-	}
-	if (event->button == config.wheel_button_down) {
-        brightness_ready();
-	    brightness_set_level_rel(-config.scrollstep);
-        brightness_unready();
-	    if (!osd_mapped())
-            map_osd();
-	    if (osd_mapped())
-            update_osd(false);
-	    ui_update();
-	    return;
-	}
+        if (event->button == config.wheel_button_up) {
+            brightness_ready();
+            brightness_set_level_rel(config.scrollstep);
+            brightness_unready();
+            if (!osd_mapped())
+                map_osd();
+            if (osd_mapped())
+                update_osd(false);
+            ui_update();
+            return;
+        }
+        if (event->button == config.wheel_button_down) {
+            brightness_ready();
+            brightness_set_level_rel(-config.scrollstep);
+            brightness_unready();
+            if (!osd_mapped())
+                map_osd();
+            if (osd_mapped())
+                update_osd(false);
+            ui_update();
+            return;
+        }
     }
 
     if ((button_press_time - prev_button_press_time) <= 0.5) {
@@ -259,67 +261,67 @@ static void button_press_event(XButtonEvent *event)
         prev_button_press_time = button_press_time;
 
     switch (check_region(x, y)) {
-	case 1:			/* on knob */
+    case 1:            /* on knob */
         brightness_ready();
-	    button_pressed = true;
-	    slider_pressed = false;
-	    mouse_drag_home_x = x;
-	    mouse_drag_home_y = y;
-	    break;
-    case 2:         /* backlight indicator */
+        button_pressed = true;
+        slider_pressed = false;
+        mouse_drag_home_x = x;
+        mouse_drag_home_y = y;
+        break;
+    case 2:            /* backlight indicator */
         brightness_switch_backlight();
         unmap_osd();
         map_osd();
         ui_update();
         break; 
-	case 3:			/* previous monitor */
+    case 3:            /* previous monitor */
         brightness_set_monitor_rel(-1); 
-	    blit_string(brightness_get_monitor_name());
-	    scroll_text(3, 4, 57, true);
-	    unmap_osd();
-	    map_osd();
-	    ui_update();
-	    break;
-	case 4:			/* next monitor */
-	    brightness_set_monitor_rel(1);
-	    blit_string(brightness_get_monitor_name());
-	    scroll_text(3, 4, 57, true);
-	    unmap_osd();
-	    map_osd();
-	    ui_update();
-	    break;
-	case 10:
-	    scroll_text(3, 4, 57, true);
-	    break;
-	default:
-	    //printf("unknown region pressed\n");
-	    break;
+        blit_string(brightness_get_monitor_name());
+        scroll_text(3, 4, 57, true);
+        unmap_osd();
+        map_osd();
+        ui_update();
+        break;
+    case 4:            /* next monitor */
+        brightness_set_monitor_rel(1);
+        blit_string(brightness_get_monitor_name());
+        scroll_text(3, 4, 57, true);
+        unmap_osd();
+        map_osd();
+        ui_update();
+        break;
+    case 10:
+        scroll_text(3, 4, 57, true);
+        break;
+    default:
+        //printf("unknown region pressed\n");
+        break;
     }
 }
 
 static int key_press_event(XKeyEvent *event)
 {
-	if (event->keycode == mmkeys.brightness_up) {
-		brightness_set_level_rel(config.scrollstep);
-		if (!osd_mapped())
-			map_osd();
-		if (osd_mapped())
-			update_osd(false);
-		ui_update();
-		return 1;
-	}
-	if (event->keycode == mmkeys.brightness_down) {
-		brightness_set_level_rel(-config.scrollstep);
-		if (!osd_mapped())
-			map_osd();
-		if (osd_mapped())
-			update_osd(false);
-		ui_update();
-		return 1;
-	}
+    if (event->keycode == mmkeys.brightness_up) {
+        brightness_set_level_rel(config.scrollstep);
+        if (!osd_mapped())
+            map_osd();
+        if (osd_mapped())
+            update_osd(false);
+        ui_update();
+        return 1;
+    }
+    if (event->keycode == mmkeys.brightness_down) {
+        brightness_set_level_rel(-config.scrollstep);
+        if (!osd_mapped())
+            map_osd();
+        if (osd_mapped())
+            update_osd(false);
+        ui_update();
+        return 1;
+    }
 
-	/* Ignore other keys */
-	return 0;
+    /* Ignore other keys */
+    return 0;
 }
 
 static void button_release_event(XButtonEvent *event)

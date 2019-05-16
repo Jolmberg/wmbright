@@ -1,7 +1,9 @@
-/* WMix 3.0 -- a mixer using the OSS mixer API.
+/* WMBright -- a brightness control using randr.
  * Copyright (C) 2000, 2001
- *	Daniel Richard G. <skunk@mit.edu>,
- *	timecop <timecop@japan.co.jp>
+ *     Daniel Richard G. <skunk@mit.edu>,
+ *     timecop <timecop@japan.co.jp>
+ * Copyright (C) 2019
+ *     Johannes Holmberg <johannes@update.uu.se>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

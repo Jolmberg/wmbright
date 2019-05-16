@@ -1,5 +1,9 @@
 /* WMBright -- a brightness control using randr.
- * Copyright (C) 2019 Johannes Holmberg, johannes@update.uu.se
+ * Copyright (C) 2000, 2001
+ *      Daniel Richard G. <skunk@mit.edu>,
+ *      timecop <timecop@japan.co.jp>
+ * Copyright (C) 2019
+ *      Johannes Holmberg, johannes@update.uu.se
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -87,7 +91,7 @@ static Pixmap led_off_mask;
 
 #define copy_xpm_area(x, y, w, h, dx, dy) \
     XCopyArea(display, dockapp.pixmap, dockapp.pixmap, dockapp.gc, \
-	    x, y, w, h, dx, dy)
+        x, y, w, h, dx, dy)
 
 /* local prototypes */
 static Cursor create_null_cursor(Display *x_display);
@@ -122,16 +126,16 @@ void dockapp_init(Display *x_display)
     /*     dockapp.osd[i].crtc = screen->crtcs[i]; */
     /*     dockapp.osd[i].gc = 0; */
     /*     dockapp.osd[i].win = 0; */
-	/* } */
+    /* } */
     /* XRRFreeScreenResources(screen); */
 }
 
 void redraw_window(void)
 {
     XCopyArea(display, dockapp.pixmap, iconwin, dockapp.gc,
-	      0, 0, dockapp.width, dockapp.height, 0, 0);
+              0, 0, dockapp.width, dockapp.height, 0, 0);
     XCopyArea(display, dockapp.pixmap, win, dockapp.gc,
-	      0, 0, dockapp.width, dockapp.height, 0, 0);
+              0, 0, dockapp.width, dockapp.height, 0, 0);
 }
 
 void ui_update(void)
@@ -161,28 +165,28 @@ int blit_string(const char *text)
     copy_xpm_area(0, 87, 256, 9, 0, 96);
 
     for (i = 0; text[i] || i > 31; i++) {
-	c = toupper(text[i]);
-	if (c == '-') {
-	    copy_xpm_area(60, 67, 6, 8, k, 96);
-	    k += 6;
-	}
-	if (c == ' ') {
-	    copy_xpm_area(66, 67, 6, 8, k, 96);
-	    k += 6;
-	}
-	if (c == '.') {
-	    copy_xpm_area(72, 67, 6, 8, k, 96);
-	    k += 6;
-	}
-	if (c >= 'A' && c <= 'Z') {	/* letter */
-	    c = c - 'A';
-	    copy_xpm_area(c * 6, 77, 6, 8, k, 96);
-	    k += 6;
-	} else if (c >= '0' && c <= '9') {	/* number */
-	    c = c - '0';
-	    copy_xpm_area(c * 6, 67, 6, 8, k, 96);
-	    k += 6;
-	}
+        c = toupper(text[i]);
+        if (c == '-') {
+            copy_xpm_area(60, 67, 6, 8, k, 96);
+            k += 6;
+        }
+        if (c == ' ') {
+            copy_xpm_area(66, 67, 6, 8, k, 96);
+            k += 6;
+        }
+        if (c == '.') {
+            copy_xpm_area(72, 67, 6, 8, k, 96);
+            k += 6;
+        }
+        if (c >= 'A' && c <= 'Z') {    /* letter */
+            c = c - 'A';
+            copy_xpm_area(c * 6, 77, 6, 8, k, 96);
+            k += 6;
+        } else if (c >= '0' && c <= '9') {    /* number */
+            c = c - '0';
+            copy_xpm_area(c * 6, 67, 6, 8, k, 96);
+            k += 6;
+        }
     }
     dockapp.ctlength = k;
     return k;
@@ -228,9 +232,9 @@ void scroll_text(int x, int y, int width, bool reset)
     pos -= 2;
 
     if (pos > 0) {
-        copy_xpm_area(0, 87, pos, 9, x, y);	/* clear */
+        copy_xpm_area(0, 87, pos, 9, x, y); /* clear */
         copy_xpm_area(0, 96, width - pos, 9, x + pos, y);
-    } else {			/* don't need to clear, already in text */
+    } else { /* don't need to clear, already in text */
         copy_xpm_area(abs(pos), 96, width, 9, x, y);
     }
     redraw_window();
@@ -260,13 +264,11 @@ void new_window(char *name, int width, int height)
     bg = WhitePixel(display, DefaultScreen(display));
 
     win = XCreateSimpleWindow(display, DefaultRootWindow(display),
-			      sizehints.x, sizehints.y,
-			      sizehints.width, sizehints.height, 1, fg,
-			      bg);
+                              sizehints.x, sizehints.y,
+                              sizehints.width, sizehints.height, 1, fg, bg);
 
     iconwin = XCreateSimpleWindow(display, win, sizehints.x, sizehints.y,
-				  sizehints.width, sizehints.height, 1, fg,
-				  bg);
+                                  sizehints.width, sizehints.height, 1, fg, bg);
 
     XSetWMNormalHints(display, win, &sizehints);
     classhint.res_name = name;
@@ -284,7 +286,7 @@ void new_window(char *name, int width, int height)
     XSelectInput(display, win, INPUT_MASK);
     XSelectInput(display, iconwin, INPUT_MASK);
 
-#undef INPUT_MASk
+#undef INPUT_MASK
 
     XStringListToTextProperty(&name, 1, &wname);
     XSetWMName(display, win, &wname);
@@ -294,31 +296,27 @@ void new_window(char *name, int width, int height)
     gcval.graphics_exposures = 0;
 
     dockapp.gc =
-	XCreateGC(display, win,
-		  GCForeground | GCBackground | GCGraphicsExposures,
-		  &gcval);
+    XCreateGC(display, win, GCForeground | GCBackground | GCGraphicsExposures, &gcval);
 
     attr.exactColors = 0;
     attr.alloc_close_colors = 1;
     attr.closeness = 30000;
     attr.valuemask = (XpmExactColors | XpmAllocCloseColors | XpmCloseness);
     if ((XpmCreatePixmapFromData(display, DefaultRootWindow(display),
-				master_xpm, &dockapp.pixmap, &dockapp.mask,
-				&attr) != XpmSuccess) ||
-	    (XpmCreatePixmapFromData(display, DefaultRootWindow(display),
-				led_on_xpm, &led_on_pixmap, &led_on_mask,
-				&attr) != XpmSuccess) ||
-	    (XpmCreatePixmapFromData(display, DefaultRootWindow(display),
-				led_off_xpm, &led_off_pixmap, &led_off_mask,
-				&attr) != XpmSuccess)) {
-	fputs("Cannot allocate colors for the dockapp pixmaps!\n", stderr);
-	exit(EXIT_FAILURE);
+                                 master_xpm, &dockapp.pixmap, &dockapp.mask,
+                                 &attr) != XpmSuccess) ||
+        (XpmCreatePixmapFromData(display, DefaultRootWindow(display),
+                                 led_on_xpm, &led_on_pixmap, &led_on_mask,
+                                 &attr) != XpmSuccess) ||
+        (XpmCreatePixmapFromData(display, DefaultRootWindow(display),
+                                 led_off_xpm, &led_off_pixmap, &led_off_mask,
+                                 &attr) != XpmSuccess)) {
+        fputs("Cannot allocate colors for the dockapp pixmaps!\n", stderr);
+        exit(EXIT_FAILURE);
     }
 
-    XShapeCombineMask(display, win, ShapeBounding, 0, 0, dockapp.mask,
-		      ShapeSet);
-    XShapeCombineMask(display, iconwin, ShapeBounding, 0, 0, dockapp.mask,
-		      ShapeSet);
+    XShapeCombineMask(display, win, ShapeBounding, 0, 0, dockapp.mask, ShapeSet);
+    XShapeCombineMask(display, iconwin, ShapeBounding, 0, 0, dockapp.mask, ShapeSet);
 
     wmhints.initial_state = WithdrawnState;
     wmhints.icon_window = iconwin;
@@ -326,7 +324,7 @@ void new_window(char *name, int width, int height)
     wmhints.icon_y = sizehints.y;
     wmhints.window_group = win;
     wmhints.flags =
-	StateHint | IconWindowHint | IconPositionHint | WindowGroupHint;
+    StateHint | IconWindowHint | IconPositionHint | WindowGroupHint;
     XSetWMHints(display, win, &wmhints);
 
     hand_cursor = XCreateFontCursor(display, XC_hand2);
@@ -335,35 +333,6 @@ void new_window(char *name, int width, int height)
     null_cursor = create_null_cursor(display);
 
     XMapWindow(display, win);
-}
-
-XRRCrtcInfo *crtc_info_by_output_name(char *monitor)
-{
-    XRRScreenResources *screen = XRRGetScreenResources(display, DefaultRootWindow(display));
-    for (int i = 0; i < screen->noutput; i++) {
-        XRROutputInfo *output_info = XRRGetOutputInfo(display, screen, screen->outputs[i]);
-        if (!strcmp(monitor, output_info->name)) {
-	    XRRCrtcInfo *crtc_info = XRRGetCrtcInfo(display, screen, output_info->crtc);
-	    XRRFreeOutputInfo(output_info);
-	    XRRFreeScreenResources(screen);
-            return crtc_info;
-	}
-	XRRFreeOutputInfo(output_info);
-    }
-    XRRFreeScreenResources(screen);
-    return NULL;
-}
-
-XRRCrtcInfo *crtc_info_by_output_number(int monitor)
-{
-    XRRScreenResources *screen = XRRGetScreenResources(display, DefaultRootWindow(display));
-    if (monitor >= screen->ncrtc) {
-	fprintf(stderr, "wmbright:warning: Requested osd monitor number is out of range, clamping\n");
-	monitor = screen->ncrtc - 1;
-    }
-    XRRCrtcInfo *crtc_info = XRRGetCrtcInfo(display, screen, screen->crtcs[monitor]);
-    XRRFreeScreenResources(screen);
-    return crtc_info;
 }
 
 void new_osd(int height)
@@ -394,7 +363,7 @@ void new_osd(int height)
     /*     dockapp.osd[i].crtc = screen->crtcs[i]; */
     /*     dockapp.osd[i].gc = 0; */
     /*     dockapp.osd[i].win = 0; */
-	/* } */
+    /* } */
     /* XRRFreeScreenResources(screen); */
 
     /* -sony-fixed-medium-r-normal--24-170-100-100-c-120-iso8859-1
@@ -402,11 +371,11 @@ void new_osd(int height)
 
     /* try our cool scaled 36pt fixed font */
     fs = XLoadQueryFont(display,
-	    "-misc-fixed-medium-r-normal--36-*-75-75-c-*-iso8859-*");
+        "-misc-fixed-medium-r-normal--36-*-75-75-c-*-iso8859-*");
 
     if (fs == NULL) {
-	/* they don't have it! */
-	/* try our next preferred font (100dpi sony) */
+    /* they don't have it! */
+    /* try our next preferred font (100dpi sony) */
         fprintf(stderr, "Trying alternate font\n");
         fs = XLoadQueryFont(display,
                             "-sony-fixed-medium-r-normal--24-*-100-100-c-*-iso8859-*");
@@ -598,45 +567,45 @@ void set_cursor(int type)
     static int oldtype;
 
     if (oldtype == type)
-	return;
+    return;
 
     switch (type) {
-	case NULL_CURSOR:
-	    XDefineCursor(display, win, null_cursor);
-	    XDefineCursor(display, iconwin, null_cursor);
-	    break;
-	case NORMAL_CURSOR:
-	    XDefineCursor(display, win, norm_cursor);
-	    XDefineCursor(display, iconwin, norm_cursor);
-	    break;
-	case HAND_CURSOR:
-	    XDefineCursor(display, win, hand_cursor);
-	    XDefineCursor(display, iconwin, hand_cursor);
-	    break;
-	case BAR_CURSOR:
-	    XDefineCursor(display, win, bar_cursor);
-	    XDefineCursor(display, iconwin, bar_cursor);
-	    break;
+    case NULL_CURSOR:
+        XDefineCursor(display, win, null_cursor);
+        XDefineCursor(display, iconwin, null_cursor);
+        break;
+    case NORMAL_CURSOR:
+        XDefineCursor(display, win, norm_cursor);
+        XDefineCursor(display, iconwin, norm_cursor);
+        break;
+    case HAND_CURSOR:
+        XDefineCursor(display, win, hand_cursor);
+        XDefineCursor(display, iconwin, hand_cursor);
+        break;
+    case BAR_CURSOR:
+        XDefineCursor(display, win, bar_cursor);
+        XDefineCursor(display, iconwin, bar_cursor);
+        break;
     }
     oldtype = type;
 }
 
 static void draw_bl_led(void)
 {
-    if (brightness_has_backlight())	/* backlight exists */
+    if (brightness_has_backlight()) /* backlight exists */
         if (brightness_backlight_selected()) 
-            copy_xpm_area(65, 0, 12, 7, 4, 42);	/* BL lit */
+            copy_xpm_area(65, 0, 12, 7, 4, 42); /* BL lit */
         else
             copy_xpm_area(65, 7, 12, 7, 4, 42); /* BL not lit */
     else /* backlight not available */
-        copy_xpm_area(65, 14, 12, 7, 4, 42);	/* BL dark */
+        copy_xpm_area(65, 14, 12, 7, 4, 42); /* BL dark */
 }
 
 static void draw_percent(void)
 {
     int level = brightness_get_percent();
 
-    copy_xpm_area(0, 87, 18, 9, 3, 14);	/* clear percentage */
+    copy_xpm_area(0, 87, 18, 9, 3, 14); /* clear percentage */
     
     if (level < 100) {
         if (level >= 10)
@@ -667,12 +636,12 @@ static void draw_knob(float level)
     copy_xpm_area(87, 0, 42, 42, 20, 18);
 
     /* if (brightness_is_muted()) */
-	/* led_pixmap = led_off_pixmap; */
+    /* led_pixmap = led_off_pixmap; */
     /* else */
-	led_pixmap = led_on_pixmap;
+    led_pixmap = led_on_pixmap;
 
     XCopyArea(display, led_pixmap, dockapp.pixmap, dockapp.gc,
-	    0, 0, LED_WIDTH, LED_HEIGHT, led_topleft_x, led_topleft_y);
+              0, 0, LED_WIDTH, LED_HEIGHT, led_topleft_x, led_topleft_y);
     draw_percent();
 }
 
@@ -692,7 +661,7 @@ static Cursor create_null_cursor(Display *x_display)
     dummy_color.red = 0;
     dummy_color.flags = 04;
     cursor = XCreatePixmapCursor(x_display, cursor_mask, cursor_mask,
-		&dummy_color, &dummy_color, 0, 0);
+                                 &dummy_color, &dummy_color, 0, 0);
     XFreePixmap(x_display, cursor_mask);
     XFreeGC(x_display, gc);
 
@@ -705,17 +674,16 @@ unsigned long get_color(Display *display, char *color_name)
     XWindowAttributes winattr;
     Status status;
 
-    XGetWindowAttributes(display,
-	    RootWindow(display, DefaultScreen(display)), &winattr);
+    XGetWindowAttributes(display, RootWindow(display, DefaultScreen(display)), &winattr);
 
     status = XParseColor(display, winattr.colormap, color_name, &color);
     if (status == 0) {
-	fprintf(stderr, "wmbright:warning: Could not get color \"%s\" for OSD, falling back to default\n", color_name);
+    fprintf(stderr, "wmbright:warning: Could not get color \"%s\" for OSD, falling back to default\n", color_name);
 
-	if (color_name != default_osd_color)
-		status = XParseColor(display, winattr.colormap, default_osd_color, &color);
-	if (status == 0)
-		return WhitePixel(display, DefaultScreen(display));
+    if (color_name != default_osd_color)
+        status = XParseColor(display, winattr.colormap, default_osd_color, &color);
+    if (status == 0)
+        return WhitePixel(display, DefaultScreen(display));
     }
 
     color.flags = DoRed | DoGreen | DoBlue;
