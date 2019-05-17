@@ -166,7 +166,7 @@ static void set_backlight_level(struct monitor_data *m)
                             PropModeReplace, (unsigned char *)(&m->level[BACKLIGHT]), 1);
 }
 
-void brightness_to_gamma(struct monitor_data *m)
+static void brightness_to_gamma(struct monitor_data *m)
 {
     int i, shift;
     float gammaRed;
@@ -268,7 +268,7 @@ static void set_brightness_level(struct monitor_data *m)
 }
 
 /* Returns the index of the last value in an array < 0xffff */
-int find_last_non_clamped(CARD16 array[], int size)
+static int find_last_non_clamped(CARD16 array[], int size)
 {
     int i;
     for (i = size - 1; i > 0; i--) {
@@ -279,7 +279,7 @@ int find_last_non_clamped(CARD16 array[], int size)
 }
 
 /* Allocate the gamma struct and leave it for later */
-bool get_gamma_property(struct monitor_data *m)
+static bool get_gamma_property(struct monitor_data *m)
 {
     m->gamma_size = XRRGetCrtcGammaSize(display, m->crtc);
     if (verbose)
@@ -302,7 +302,7 @@ bool get_gamma_property(struct monitor_data *m)
 
 /* Reallocate the gamma struct and calculate brightness from it */
 /* Assumes that gamma_size has not changed, which would be really weird */
-void get_gamma_values(struct monitor_data *m)
+static void get_gamma_values(struct monitor_data *m)
 {
     XRRFreeGamma(m->gamma);
     m->gamma = XRRGetCrtcGamma(display, m->crtc);
@@ -539,7 +539,7 @@ bool brightness_is_changed(void)
     return get_brightness_state();
 }
 
-float get_average_level(void)
+static float get_average_level(void)
 {
     float total = 0;
     int count = 0;
@@ -567,7 +567,7 @@ float brightness_get_level(int monitor)
     }
 }
 
-float get_max_from_max(void)
+static float get_max_from_max(void)
 {
     float max = 0;
     for (int i = 1; i < n_monitors; i++) {
@@ -581,7 +581,7 @@ float get_max_from_max(void)
     return max;
 }
 
-float get_max_from_min(void)
+static float get_max_from_min(void)
 {
     float max = 0.0;
     for (int i = 1; i < n_monitors; i++) {
