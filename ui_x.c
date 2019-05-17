@@ -192,14 +192,14 @@ int blit_string(const char *text)
     return k;
 }
 
-void scroll_text(int x, int y, int width, bool reset)
+void scroll_text(int x, int y, int width, int chars, bool reset)
 {
+    static int wait;
     static int pos;
-    static int first;
     static int stop;
     
     /* no text scrolling at all */
-    if (true) { //!config.scrolltext) {
+    if (!config.scrolltext || (chars * 7 <= width)) {
         if (!reset)
             return;
         copy_xpm_area(0, 96, 58, 9, x, y);
@@ -208,8 +208,8 @@ void scroll_text(int x, int y, int width, bool reset)
     }
 
     if (reset) {
+        wait = 10;
         pos = 0;
-        first = 0;
         stop = 0;
         copy_xpm_area(0, 87, width, 9, x, y);
     }
@@ -218,18 +218,19 @@ void scroll_text(int x, int y, int width, bool reset)
         return;
     }
 
-    if ((first == 0) && pos == 0) {
-        pos = width;
-        first = 1;
-    }
-
     if (pos < -(dockapp.ctlength)) {
-        first = 1;
         pos = width;
-        stop = 1;
+        wait = 30;
         return;
     }
-    pos -= 2;
+    if (wait > 0) {
+        wait--;
+    } else {
+        pos -= 2;
+        if (pos == 0 || pos == 1) {
+            wait = 10;
+        }
+    }
 
     if (pos > 0) {
         copy_xpm_area(0, 87, pos, 9, x, y); /* clear */

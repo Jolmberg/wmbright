@@ -34,10 +34,9 @@ void ui_update(void);
 void redraw_window(void);
 
 int blit_string(const char *text);
-void scroll_text(int x, int y, int width, bool reset);
+void scroll_text(int x, int y, int width, int chars, bool reset);
 void set_cursor(int type);
 void knob_turn(float delta);
-//void slider_move(float delta);
 
 unsigned long get_color(Display *display, char *color_name);
 

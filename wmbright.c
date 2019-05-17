@@ -51,6 +51,7 @@ static float display_width;
 static int mouse_drag_home_x;
 static int mouse_drag_home_y;
 static int idle_loop;
+static int msg_length;
 
 /* local stuff */
 static void signal_catch(int sig);
@@ -112,7 +113,8 @@ int main(int argc, char **argv)
     config_release();
 
     blit_string(brightness_get_monitor_name());
-    scroll_text(3, 4, 57, true);
+    msg_length = strlen(brightness_get_monitor_name());
+    scroll_text(3, 4, 35, msg_length, true);
     ui_update();
 
     /* add click regions */
@@ -181,16 +183,11 @@ int main(int argc, char **argv)
             }
             usleep(100000);
             //brightness_tick();
-            scroll_text(3, 4, 57, false);
-            /* rescroll message after some delay */
-            if (idle_loop++ > 256) {
-                /* scroll_text(3, 4, 57, true); */
-                idle_loop = 0;
-            }
+            scroll_text(3, 4, 35, msg_length, false);
             /* get rid of OSD after a few seconds of idle */
-            if ((idle_loop > 15) && osd_mapped() && !button_pressed) {
+            if ((idle_loop++ > 15) && osd_mapped() && !button_pressed) {
                 unmap_osd();
-                idle_loop = 0;
+                idle_loop = -10000;
             }
             if (brightness_is_changed())
                 ui_update();
@@ -243,6 +240,7 @@ static void button_press_event(XButtonEvent *event)
             if (osd_mapped())
                 update_osd(false);
             ui_update();
+            idle_loop = 0;
             return;
         }
         if (event->button == config.wheel_button_down) {
@@ -254,6 +252,7 @@ static void button_press_event(XButtonEvent *event)
             if (osd_mapped())
                 update_osd(false);
             ui_update();
+            idle_loop = 0;
             return;
         }
     }
@@ -277,6 +276,7 @@ static void button_press_event(XButtonEvent *event)
             unmap_osd();
             map_osd();
             ui_update();
+            idle_loop = 0;
         }
         break;
     case 3:            /* gamma indicator */
@@ -284,26 +284,30 @@ static void button_press_event(XButtonEvent *event)
             unmap_osd();
             map_osd();
             ui_update();
+            idle_loop = 0;
         }
         break;
    case 8:            /* previous monitor */
         brightness_set_monitor_rel(-1); 
         blit_string(brightness_get_monitor_name());
-        scroll_text(3, 4, 57, true);
+        msg_length = strlen(brightness_get_monitor_name());
+        scroll_text(3, 4, 35, msg_length, true);
         unmap_osd();
         map_osd();
         ui_update();
+        idle_loop = 0;
         break;
     case 9:            /* next monitor */
         brightness_set_monitor_rel(1);
         blit_string(brightness_get_monitor_name());
-        scroll_text(3, 4, 57, true);
+        msg_length = strlen(brightness_get_monitor_name());
+        scroll_text(3, 4, 35, msg_length, true);
         unmap_osd();
         map_osd();
         ui_update();
         break;
     case 10:
-        scroll_text(3, 4, 57, true);
+        scroll_text(3, 4, 35, msg_length, true);
         break;
     default:
         //printf("unknown region pressed\n");
@@ -320,6 +324,7 @@ static int key_press_event(XKeyEvent *event)
         if (osd_mapped())
             update_osd(false);
         ui_update();
+        idle_loop = 0;
         return 1;
     }
     if (event->keycode == mmkeys.brightness_down) {
@@ -329,6 +334,7 @@ static int key_press_event(XKeyEvent *event)
         if (osd_mapped())
             update_osd(false);
         ui_update();
+        idle_loop = 0;
         return 1;
     }
 
@@ -379,6 +385,7 @@ static void motion_event(XMotionEvent *event)
                 map_osd();
             if (osd_mapped())
                 update_osd(false);
+            idle_loop = 0;
         }
         XWarpPointer(display, None, event->window, x, y, 0, 0,
                      mouse_drag_home_x, mouse_drag_home_y);

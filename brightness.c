@@ -63,7 +63,7 @@ struct monitor_data {
 /* Multiple outputs may share the same controller.
    Retain the unique names but share the rest of the data between clones. */
 struct monitor {
-    char name[8];                /* Output name */
+    char name[17];                  /* Output name */
     bool is_clone;
     struct monitor_data *data;
 };
@@ -419,10 +419,8 @@ void brightness_init(Display *x_display, bool set_verbose)
         }
         i2++;
         struct monitor *m = monitors + i2;
-        strncpy(m->name, oi->name, 8);
-        if (strlen(oi->name) >= 8) {
-            m->name[7] = '\0';
-        }
+        strncpy(m->name, oi->name, 16);
+        m->name[16] = '\0';
         m->is_clone = false;
         for (int j = 0; j < oi->nclone; j++) {
             for (int k = 0; k < i2; k++) {
