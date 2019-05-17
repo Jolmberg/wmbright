@@ -97,12 +97,9 @@ static Pixmap led_off_mask;
 static Cursor create_null_cursor(Display *x_display);
 
 /* ui stuff */
-//static void draw_stereo_led(void);
 static void draw_leds(void);
-//static void draw_mute_led(void);
 static void draw_percent(void);
 static void draw_knob(float level);
-//static void draw_slider(float offset);
 
 /* global variables */
 static struct dockapp dockapp;
@@ -118,16 +115,6 @@ static Cursor bar_cursor;
 void dockapp_init(Display *x_display)
 {
     display = x_display;
-
-    /* XRRScreenResources *screen = XRRGetScreenResources(display, DefaultRootWindow(display)); */
-    /* dockapp.osd = (struct osd *)malloc(sizeof(struct osd)*screen->ncrtc); */
-    /* dockapp.osd_count = screen->ncrtc; */
-    /* for (int i = 0; i < screen->ncrtc; i++) { */
-    /*     dockapp.osd[i].crtc = screen->crtcs[i]; */
-    /*     dockapp.osd[i].gc = 0; */
-    /*     dockapp.osd[i].win = 0; */
-    /* } */
-    /* XRRFreeScreenResources(screen); */
 }
 
 void redraw_window(void)
@@ -140,11 +127,8 @@ void redraw_window(void)
 
 void ui_update(void)
 {
-    //draw_stereo_led();
     draw_leds();
-    //draw_mute_led();
     draw_knob(brightness_get_level(-1));
-    /* draw_slider(brightness_get_balance()); */
     redraw_window();
 }
 
@@ -341,8 +325,6 @@ void destroy_osd()
     for (int i = 0; i < dockapp.osd_count; i++) {
         XFreeGC(display, dockapp.osd[i].gc);
         XDestroyWindow(display, dockapp.osd[i].win);
-        /* dockapp.osd[i].gc = 0; */
-        /* dockapp.osd[i].win = 0; */
     }
 }
 
@@ -369,13 +351,6 @@ void new_osd(int height)
         dockapp.osd[i].win = 0;
     }
 
-    /* dockapp.osd_count = screen->ncrtc; */
-    /* for (int i = 0; i < screen->ncrtc; i++) { */
-    /*     dockapp.osd[i].crtc = screen->crtcs[i]; */
-    /*     dockapp.osd[i].gc = 0; */
-    /*     dockapp.osd[i].win = 0; */
-    /* } */
-    /* XRRFreeScreenResources(screen); */
 
     /* -sony-fixed-medium-r-normal--24-170-100-100-c-120-iso8859-1
      * -misc-fixed-medium-r-normal--36-*-75-75-c-*-iso8859-* */
@@ -408,7 +383,6 @@ void new_osd(int height)
     sizehints.flags = USSize | USPosition;
 
     for (int i = 0; i < dockapp.osd_count; i++) {
-        //XRRCrtcInfo *crtc_info = XRRGetCrtcInfo(display, screen, dockapp.osd[i].crtc);
         dockapp.osd[i].mapped = false;
         struct dimensions dim = brightness_get_dimensions(i+1);
         
@@ -420,15 +394,6 @@ void new_osd(int height)
         x = dim.x + 100;
         y = dim.y + dim.height - 120;
 
-        // Rethink this?
-        if (dockapp.osd[i].win &&
-            width == dockapp.osd[i].width &&
-            x == dockapp.osd[i].x &&
-            y == dockapp.osd[i].y) {
-            // Nothing important has changed.
-            continue;
-        }
-
         sizehints.x = x;
         sizehints.y = y;
         sizehints.width = width;
@@ -437,8 +402,6 @@ void new_osd(int height)
         xattributes.override_redirect = True;
         xattributes.cursor = None;
 
-        if (dockapp.osd[i].win)
-            XDestroyWindow(display, dockapp.osd[i].win);
         osdwin = XCreateSimpleWindow(display, DefaultRootWindow(display),
                                      sizehints.x, sizehints.y, width, height,
                                      0, fg, bg);
@@ -456,12 +419,9 @@ void new_osd(int height)
         gcval.foreground = get_color(display, config.osd_color);
         gcval.background = bg;
         gcval.graphics_exposures = 0;
-        if (dockapp.osd[i].gc)
-            XFreeGC(display, dockapp.osd[i].gc);
-        gc =
-            XCreateGC(display, osdwin,
-                      GCForeground | GCBackground | GCGraphicsExposures,
-                      &gcval);
+        gc = XCreateGC(display, osdwin,
+                       GCForeground | GCBackground | GCGraphicsExposures,
+                       &gcval);
         XSetFont(display, gc, fs->fid);
         
         dockapp.osd[i].win = osdwin;
@@ -548,16 +508,6 @@ void map_osd(void)
         }
     }
 }
-
-/* bool osd_mapped_by_crtc(RRCrtc crtc) */
-/* { */
-/*     for (int i = 0; i < dockapp.osd_count; i++) { */
-/*         if (dockapp.osd[i].crtc == crtc) { */
-/*             return dockapp.osd[i].mapped; */
-/*         } */
-/*     } */
-/*     return false; */
-/* } */
 
 bool osd_mapped(void)
 {
@@ -655,9 +605,6 @@ static void draw_knob(float level)
     /* clear previous knob picture */
     copy_xpm_area(101, 0, 42, 42, 20, 18);
 
-    /* if (brightness_is_muted()) */
-    /* led_pixmap = led_off_pixmap; */
-    /* else */
     led_pixmap = led_on_pixmap;
 
     XCopyArea(display, led_pixmap, dockapp.pixmap, dockapp.gc,
