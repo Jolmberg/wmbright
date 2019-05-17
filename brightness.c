@@ -58,6 +58,7 @@ struct monitor_data {
     struct dimensions dim;          /* Monitor position and size */
     pthread_mutex_t mutex;
     bool thread_active;
+    bool thread_kill;
 };
 
 /* Multiple outputs may share the same controller.
@@ -234,7 +235,7 @@ static void *do_set_brightness_level(void *data)
         m->level[GAMMA] = CLAMP((max-min) * m->actual_level, min, max);
 
         pthread_mutex_lock(&m->mutex);
-        if (m->last_set_brightness == m->level[GAMMA]) {
+        if (m->thread_kill || m->last_set_brightness == m->level[GAMMA]) {
             m->thread_active = false;
             pthread_mutex_unlock(&m->mutex);
             return NULL;
@@ -446,6 +447,7 @@ void brightness_init(Display *x_display, bool set_verbose)
             d->output = screen->outputs[i];
             pthread_mutex_init(&d->mutex, NULL);
             d->thread_active = false;
+            d->thread_kill = false;
             if (get_backlight_property(d))
                 d->current_method = BACKLIGHT;
             if (get_gamma_property(d) && (d->current_method == NONE))
@@ -466,11 +468,17 @@ void brightness_init(Display *x_display, bool set_verbose)
 }
 
 void brightness_reinit() {
-    // Wait for threads to finish
-
-    // Free everything and start over
+    // Wait for threads to finish, free everything and start over
     for (int i = 0; i < n_monitors; i++) {
         if (i > 0) {
+            struct monitor_data *m = monitors[i].data;
+            m->thread_kill = true;
+            while (m->thread_active) {
+                usleep(10000);
+            }
+            pthread_mutex_lock(&m->mutex);
+            pthread_mutex_unlock(&m->mutex);
+            pthread_mutex_destroy(&m->mutex);
             XRRFreeGamma(monitors[i].data->gamma);
         }
         free(monitors[i].data);
