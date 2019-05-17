@@ -45,16 +45,15 @@ struct monitor_data {
     bool supported_methods[3];
     enum method current_method;
     Atom backlight_atom;
-    uint32_t min;                   /* Min backlight level */
-    uint32_t max;                   /* Max backlight level */
-    uint32_t level;                 /* Current backlight level */
-    float normalised_level;         /* level, in [0, 1] */
+    uint32_t min[3];                /* Min backlight level */
+    uint32_t max[3];                /* Max backlight level */
+    uint32_t level[3];              /* Current backlight level */
+    float normalised_level[3];      /* level, in [0, 1] */
     float actual_level;             /* normalised + global boost */
     float gamma_red, gamma_green, gamma_blue;
     int gamma_size;
     XRRCrtcGamma *gamma;
     XRRCrtcGamma **gamma_precalc;
-    uint32_t brightness;            /* Wanted xrandr brightness */
     uint32_t last_set_brightness;
     struct dimensions dim;          /* Monitor position and size */
     pthread_mutex_t mutex;
@@ -113,8 +112,8 @@ static bool get_backlight_property(struct monitor_data *m)
                 Xfree(a);
                 return false;
             }
-            m->min = pi->values[0];
-            m->max = pi->values[1];
+            m->min[BACKLIGHT] = pi->values[0];
+            m->max[BACKLIGHT] = pi->values[1];
             Xfree(pi);
             unsigned char *prop;
             Atom actual_type;
@@ -130,11 +129,11 @@ static bool get_backlight_property(struct monitor_data *m)
                        (int)actual_type);
             }
             m->backlight_atom = a[j];
-            m->level = *(uint32_t *)prop;
+            m->level[BACKLIGHT] = *(uint32_t *)prop;
             Xfree(prop);
             if (verbose)
                 printf("Output supports backlight, range: (%d, %d), current: %d\n",
-                       m->min, m->max, m->level);
+                       m->min[BACKLIGHT], m->max[BACKLIGHT], m->level[BACKLIGHT]);
             m->supported_methods[BACKLIGHT] = true;
             Xfree(a);
             return true;
@@ -146,25 +145,25 @@ static bool get_backlight_property(struct monitor_data *m)
     return false;
 }
 
-bool get_backlight_level(struct monitor_data *m)
+static void get_backlight_level(struct monitor_data *m)
 {
     unsigned char *prop;
     Atom actual_type;
     int actual_format;
     unsigned long nitems, bytes_after;
     XRRGetOutputProperty(display, m->output, m->backlight_atom, 0, 100, False, False, AnyPropertyType, &actual_type, &actual_format, &nitems, &bytes_after, &prop);
-    uint32_t level = *(uint32_t *)prop; 
+    m->level[BACKLIGHT] = *(uint32_t *)prop;
     Xfree(prop);
-    return level;    
 }
 
-void set_backlight_level(struct monitor_data *m)
+static void set_backlight_level(struct monitor_data *m)
 {
-    m->actual_level = CLAMP(m->normalised_level + global_offset, 0.0, 1.0);
-    m->level = CLAMP(m->min + (m->max - m->min) * m->actual_level, m->min, m->max);
+    uint32_t min = m->min[BACKLIGHT], max = m->max[BACKLIGHT];
+    m->actual_level = CLAMP(m->normalised_level[BACKLIGHT] + global_offset, 0.0, 1.0);
+    m->level[BACKLIGHT] = CLAMP(min + (max - min) * m->actual_level, min, max);
 
     XRRChangeOutputProperty(display, m->output, m->backlight_atom, XA_INTEGER, 32,
-                            PropModeReplace, (unsigned char *)(&m->level), 1);
+                            PropModeReplace, (unsigned char *)(&m->level[BACKLIGHT]), 1);
 }
 
 void brightness_to_gamma(struct monitor_data *m)
@@ -226,22 +225,23 @@ void brightness_to_gamma(struct monitor_data *m)
     }
 }
 
-void *do_set_brightness_level(void *data)
+static void *do_set_brightness_level(void *data)
 {
     struct monitor_data *m = (struct monitor_data *)data;
     do {
-        m->actual_level = CLAMP(m->normalised_level + global_offset, 0.0, 1.0);
-        m->brightness = CLAMP(100 * m->actual_level, 0, 100);
+        uint32_t min = m->min[GAMMA], max = m->max[GAMMA];
+        m->actual_level = CLAMP(m->normalised_level[GAMMA] + global_offset, 0.0, 1.0);
+        m->level[GAMMA] = CLAMP((max-min) * m->actual_level, min, max);
 
         pthread_mutex_lock(&m->mutex);
-        if (m->last_set_brightness == m->brightness) {
+        if (m->last_set_brightness == m->level[GAMMA]) {
             m->thread_active = false;
             pthread_mutex_unlock(&m->mutex);
             return NULL;
         }
         pthread_mutex_unlock(&m->mutex);
 
-        m->last_set_brightness = m->brightness;
+        m->last_set_brightness = m->level[GAMMA];
         brightness_to_gamma(m);
         XRRSetCrtcGamma(display, m->crtc, m->gamma);
         XFlush(display);
@@ -249,14 +249,16 @@ void *do_set_brightness_level(void *data)
     } while (true);
 }
 
-void set_brightness_level(struct monitor_data *m)
+static void set_brightness_level(struct monitor_data *m)
 {
     pthread_t thread;
+    uint32_t min = m->min[GAMMA], max = m->max[GAMMA];
 
     pthread_mutex_lock(&m->mutex);
-    m->actual_level = CLAMP(m->normalised_level + global_offset, 0.0, 1.0);
-    m->brightness = CLAMP(100 * m->actual_level, 0, 100);
-    if (m->thread_active || (m->last_set_brightness == m->brightness)) {
+    m->actual_level = CLAMP(m->normalised_level[GAMMA] + global_offset, 0.0, 1.0);
+
+    m->level[GAMMA] = CLAMP((max - min) * m->actual_level, min, max);
+    if (m->thread_active || (m->last_set_brightness == m->level[GAMMA])) {
         pthread_mutex_unlock(&m->mutex);
         return;
     }
@@ -292,6 +294,8 @@ bool get_gamma_property(struct monitor_data *m)
         fprintf(stderr, "wmbright:warning: Failed to get gamma for output %ld\n", m->output);
         return false;
     }
+    m->min[GAMMA] = 0;
+    m->max[GAMMA] = 100;
     m->supported_methods[GAMMA] = true;
     return true;
 }
@@ -367,7 +371,7 @@ void get_gamma_values(struct monitor_data *m)
             printf("red: %f, green: %f, blue: %f, brightness: %f\n", m->gamma_red, m->gamma_green, m->gamma_blue, brightness);
     }
     
-    m->brightness = (100 * brightness) + 0.5;
+    m->level[GAMMA] = (100 * brightness) + 0.5;
 }
 
 void brightness_init(Display *x_display, bool set_verbose)
@@ -397,11 +401,8 @@ void brightness_init(Display *x_display, bool set_verbose)
     monitors[0].name[2] = 'L';
     monitors[0].name[3] = '\0';
     monitors[0].data = (struct monitor_data *)malloc(sizeof(struct monitor_data));
-    monitors[0].data->normalised_level = 0.5;
+    monitors[0].data->normalised_level[NONE] = 0.5;
     monitors[0].data->actual_level = 0.5;
-    monitors[0].data->level = 0;
-    monitors[0].data->min = 0;
-    monitors[0].data->max = 100;
     monitors[0].data->supported_methods[0] = true;
     monitors[0].data->supported_methods[1] = false;
     monitors[0].data->supported_methods[2] = false;
@@ -464,9 +465,6 @@ void brightness_init(Display *x_display, bool set_verbose)
     XRRFreeScreenResources(screen);
 
     get_brightness_state();
-    if (verbose) {
-        printf("Current level: %d (%f)\n", monitors[0].data->level, monitors[0].data->normalised_level);
-    }
 }
 
 void brightness_reinit() {
@@ -501,11 +499,14 @@ static bool get_brightness_state(void)
             get_backlight_level(m);
         if (m->supported_methods[GAMMA])
             get_gamma_values(m);
-        if (m->current_method == BACKLIGHT)
-            m->normalised_level = ((float)(m->level - m->min)) / (m->max - m->min);
-        else if (m->current_method == GAMMA)
-            m->normalised_level = (float)m->brightness / 100.0;
-        m->actual_level = m->normalised_level;
+            
+        for (int method = BACKLIGHT; method <= GAMMA; method++) {
+            if (m->supported_methods[method]) {
+                uint32_t min = m->min[method], max = m->max[method];
+                m->normalised_level[method] = (float)(m->level[method] - min) / (max - min);
+            }
+        }
+        m->actual_level = m->normalised_level[m->current_method];
     }
     XRRFreeScreenResources(screen);
     return true;
@@ -545,7 +546,8 @@ float get_average_level(void)
     for (int i = 1; i < n_monitors; i++) {
         if (monitors[i].is_clone || monitors[i].data->crtc == 0)
             continue;
-        total += CLAMP(monitors[i].data->normalised_level + global_offset, 0.0, 1.0);
+        enum method method = monitors[i].data->current_method;
+        total += CLAMP(monitors[i].data->normalised_level[method] + global_offset, 0.0, 1.0);
         count++;
     }
     return total / count;
@@ -560,7 +562,8 @@ float brightness_get_level(int monitor)
         return get_average_level();
     } else {
         // get_brightness_state();
-        return CLAMP(monitors[monitor].data->normalised_level + global_offset, 0.0, 1.0);
+        enum method method = monitors[monitor].data->current_method;
+        return CLAMP(monitors[monitor].data->normalised_level[method] + global_offset, 0.0, 1.0);
     }
 }
 
@@ -570,7 +573,8 @@ float get_max_from_max(void)
     for (int i = 1; i < n_monitors; i++) {
         if (monitors[i].is_clone || monitors[i].data->crtc == 0)
             continue;
-        float m = 1.0 - CLAMP(monitors[i].data->normalised_level + global_offset, 0.0, 1.0);
+        enum method method = monitors[i].data->current_method;
+        float m = 1.0 - CLAMP(monitors[i].data->normalised_level[method] + global_offset, 0.0, 1.0);
         if (m > max)
             max = m;
     }
@@ -583,7 +587,8 @@ float get_max_from_min(void)
     for (int i = 1; i < n_monitors; i++) {
         if (monitors[i].is_clone || monitors[i].data->crtc == 0)
             continue;
-        float m = CLAMP(monitors[i].data->normalised_level + global_offset, 0.0, 1.0);
+        enum method method = monitors[i].data->current_method;
+        float m = CLAMP(monitors[i].data->normalised_level[method] + global_offset, 0.0, 1.0);
         if (m > max)
             max = m;
     }
@@ -604,29 +609,16 @@ void brightness_set_level(float level)
     struct monitor_data *m = monitors[cur_monitor].data;
     if (cur_monitor > 0) {
         assert((level >= 0.0) && (level <= 1.0));
-        m->normalised_level = level;
-        if (m->current_method == BACKLIGHT) {
-            m->level = CLAMP(m->min + (m->max - m->min) * m->normalised_level, m->min, m->max);
-        } else if (m->current_method == GAMMA) {
-            m->brightness = CLAMP(100 * level, 0, 100);
-        }
-    } else {
-        m->normalised_level = level;
+        m->normalised_level[m->current_method] = level;
+        set_brightness_state();
     }
-    set_brightness_state();
 }
 
 void brightness_set_level_rel(float delta_level)
 {
     struct monitor_data *m = monitors[cur_monitor].data;
     if (cur_monitor > 0) {
-        m->normalised_level += delta_level;
-        m->normalised_level = CLAMP(m->normalised_level, 0.0, 1.0);
-        if (m->current_method == BACKLIGHT) {
-            m->level = CLAMP(m->min + (m->max - m->min) * m->normalised_level, m->min, m->max);
-        } else if (m->current_method == GAMMA) {
-            m->brightness = 100 * m->normalised_level;
-        }
+        m->normalised_level[m->current_method] = CLAMP(m->normalised_level[m->current_method] + delta_level, 0.0, 1.0);
     } else {
         if (delta_level > 0) {
             float max = get_max_from_max();
@@ -638,8 +630,8 @@ void brightness_set_level_rel(float delta_level)
                 delta_level = max;
         }
         global_offset += delta_level;
-        m->normalised_level += delta_level;
-        m->actual_level = m->normalised_level;
+        m->normalised_level[NONE] += delta_level;
+        m->actual_level = m->normalised_level[NONE];
     }
     set_brightness_state();
 }
@@ -739,7 +731,8 @@ void brightness_unready(void)
         for (int i = 1; i < n_monitors; i++) {
             if (monitors[i].is_clone || monitors[i].data->crtc == 0)
                 continue;
-            monitors[i].data->normalised_level = CLAMP(monitors[i].data->normalised_level + global_offset, 0.0, 1.0);
+            enum method method = monitors[i].data->current_method;
+            monitors[i].data->normalised_level[method] = CLAMP(monitors[i].data->normalised_level[method] + global_offset, 0.0, 1.0);
         }        
         global_offset = 0;
     }

@@ -110,9 +110,11 @@ int main(int argc, char **argv)
         mmkey_install(display);
 
     config_release();
-    blit_string("wmbright " VERSION);
+
+    blit_string(brightness_get_monitor_name());
     scroll_text(3, 4, 57, true);
     ui_update();
+
     /* add click regions */
     add_region(1, 20, 18, 42, 42);    /* knob */
     add_region(2, 3, 41, 14, 9);      /* backlight indicator */
@@ -182,7 +184,7 @@ int main(int argc, char **argv)
             scroll_text(3, 4, 57, false);
             /* rescroll message after some delay */
             if (idle_loop++ > 256) {
-                scroll_text(3, 4, 57, true);
+                /* scroll_text(3, 4, 57, true); */
                 idle_loop = 0;
             }
             /* get rid of OSD after a few seconds of idle */

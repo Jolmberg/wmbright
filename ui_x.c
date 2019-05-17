@@ -199,7 +199,7 @@ void scroll_text(int x, int y, int width, bool reset)
     static int stop;
     
     /* no text scrolling at all */
-    if (!config.scrolltext) {
+    if (true) { //!config.scrolltext) {
         if (!reset)
             return;
         copy_xpm_area(0, 96, 58, 9, x, y);
@@ -624,16 +624,16 @@ static void draw_percent(void)
 {
     int level = brightness_get_percent();
 
-    copy_xpm_area(0, 87, 18, 9, 3, 14); /* clear percentage */
+    copy_xpm_area(0, 87, 15, 9, 44, 4); /* clear percentage */
     
     if (level < 100) {
         if (level >= 10)
-            copy_xpm_area((level / 10) * 6, 67, 6, 9, 6, 14);
-        copy_xpm_area((level % 10) * 6, 67, 6, 9, 12, 14);
+            copy_xpm_area((level / 10) * 6, 67, 6, 9, 47, 4);
+        copy_xpm_area((level % 10) * 6, 67, 6, 9, 53, 4);
     } else {
-        copy_xpm_area(9, 67, 3, 9, 3, 14);
-        copy_xpm_area(0, 67, 6, 9, 6, 14);
-        copy_xpm_area(0, 67, 6, 9, 12, 14);
+        copy_xpm_area(9, 67, 3, 9, 44, 4);
+        copy_xpm_area(0, 67, 6, 9, 47, 4);
+        copy_xpm_area(0, 67, 6, 9, 53, 4);
     }
 }
 
