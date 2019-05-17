@@ -675,16 +675,49 @@ RRCrtc brightness_get_crtc(void)
 
 bool brightness_has_method(enum method method)
 {
-    return monitors[cur_monitor].data->supported_methods[method];
+    if (cur_monitor == 0) {
+        for (int i = 1; i < n_monitors; i++) {
+            if (monitors[i].data->supported_methods[method])
+                return true;
+        }
+        return false;
+    } else {
+        return monitors[cur_monitor].data->supported_methods[method];
+    }
 }
 
 enum method brightness_get_method(void)
 {
+    if (cur_monitor == 0) {
+        if (n_monitors == 1) {
+            return NONE;
+        } else if (n_monitors == 2) {
+            return monitors[1].data->current_method;
+        } else {
+            enum method method = monitors[1].data->current_method;
+            for (int i = 2; i < n_monitors; i++) {
+                if (monitors[i].data->current_method != method) {
+                    return NONE;
+                }
+            }
+            return method;
+        }
+    }
     return monitors[cur_monitor].data->current_method;
 }
 
 bool brightness_set_method(enum method method)
 {
+    if (cur_monitor == 0) {
+        bool success = false;
+        for (int i = 1; i < n_monitors; i++) {
+            if (monitors[i].data->supported_methods[method]) {
+                monitors[i].data->current_method = method;
+                success = true;
+            }
+        }
+        return success;
+    }
     struct monitor_data *m = monitors[cur_monitor].data;
     if (m->supported_methods[method]) {
         m->current_method = method;
