@@ -1,4 +1,4 @@
-/* WMBright -- a brightness control using randr.
+/* wmbright -- a brightness control using randr.
  * Copyright (C) 2014 Christophe CURIS for the WindowMaker Team
  * Copyright (C) 2019 Johannes Holmberg, johannes@update.uu.se
  *
@@ -49,7 +49,7 @@ extern struct _Config {
 /* Default color for OSD */
 extern const char default_osd_color[];
 
-/* Current version of WMBright */
+/* Current version of wmbright */
 #define VERSION "0.1"
 
 /* Sets the default values in the config */

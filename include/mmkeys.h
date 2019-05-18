@@ -1,4 +1,4 @@
-/* WMBright -- a brightness control using randr.
+/* wmbright -- a brightness control using randr.
  * Copyright (C) 2014 Christophe CURIS for the WindowMaker Team
  * Copyright (C) 2019 Johannes Holmberg, johannes@update.uu.se
  *

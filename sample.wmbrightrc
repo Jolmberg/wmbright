@@ -1,4 +1,4 @@
-# WMix configuration file
+# wmbright configuration file
 
 # use mousewheel
 mousewheel=1
@@ -8,9 +8,9 @@ scrolltext=1
 osd=1
 # color of the OSD (from rgb.txt or rgb:xx/xx/xx)
 osdcolor=green
-# which mousewheel button is "up"
+# which mouse button is "wheel up"
 wheelbtn1=4
-# which mousewheel button is "down"
+# which mouse button is "wheel down"
 wheelbtn2=5
-# the step for mousewheel adjustment (in percent, 3 or 0.03)
+# the step for mousewheel adjustment
 wheelstep=3

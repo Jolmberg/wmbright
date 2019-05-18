@@ -1,4 +1,4 @@
-/* WMBright -- a brightness control using randr.
+/* wmbright -- a brightness control using randr.
  * Copyright (C) 2014 Christophe CURIS for the WindowMaker Team
  * Copyright (C) 2019 Johannes Holmberg, johannes@update.uu.se
  *
@@ -28,13 +28,11 @@
 #include <getopt.h>
 #include <limits.h>
 
-#include <sys/soundcard.h>
-
 #include "include/common.h"
 #include "include/config.h"
 #include "include/misc.h"
 
-#define VERSION_TEXT "WMBright " VERSION " by johannes@update.uu.se\n"
+#define VERSION_TEXT "wmbright " VERSION " by johannes@update.uu.se\n"
 
 #define HELP_TEXT                                                   \
     "usage:\n"                                                      \

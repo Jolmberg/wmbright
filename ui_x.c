@@ -1,4 +1,4 @@
-/* WMBright -- a brightness control using randr.
+/* wmbright -- a brightness control using randr.
  * Copyright (C) 2000, 2001
  *      Daniel Richard G. <skunk@mit.edu>,
  *      timecop <timecop@japan.co.jp>

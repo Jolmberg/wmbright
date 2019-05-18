@@ -1,4 +1,4 @@
-/* WMBright -- a brightness control using randr.
+/* wmbright -- a brightness control using randr.
  * Copyright (C) 2000, 2001 timecop@japan.co.jp
  * Mixer code in version 3.0 based on mixer api library by
  * Daniel Richard G. <skunk@mit.edu>, which in turn was based on

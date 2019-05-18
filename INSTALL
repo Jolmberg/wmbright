@@ -3,10 +3,9 @@ Since your reading this, you are probably done with the tar zxvf part.
 1. make
 2. become root
 3. make install
-4. wmix
+4. wmbright
 
 pretty easy. See README for instructions on how to use the mixer and about
-some information on the programming involved. See the man page (man wmix)
+some information on the programming involved. See the man page (man wmbright)
 for invocation and configuration information.
 
-timecop [timecop@japan.co.jp]
