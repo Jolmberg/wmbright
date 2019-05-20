@@ -70,7 +70,6 @@ int main(int argc, char **argv)
     config_init();
     parse_cli_options(argc, argv);
     config_read();
-    config_set_defaults();
     XInitThreads();
     display = XOpenDisplay(config.display_name);
     if (display == NULL) {

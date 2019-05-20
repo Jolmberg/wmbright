@@ -41,8 +41,7 @@
     "  -f <file> parse this config [~/.wmbrightrc]\n"               \
     "  -h        print this help\n"                                 \
     "  -k        disable grabbing of brightness control keys\n"     \
-    "  -o <num>  display osd on this monitor number or name [0]\n"  \
-    "            use -1 to disable osd\n"                           \
+    "  -o        disable osd\n"                                     \
     "  -v        verbose -> id, long name, name\n"                  \
 
 /* The global configuration */
@@ -58,7 +57,6 @@ const char default_osd_color[] = "green";
 void config_init(void)
 {
     memset(&config, 0, sizeof(config));
-    config.api = 0;
     config.mousewheel = 1;
     config.scrolltext = 1;
     config.mmkeys = 1;
@@ -67,8 +65,6 @@ void config_init(void)
     config.scrollstep = 0.03;
     config.osd = 1;
     config.osd_color = (char *) default_osd_color;
-    config.osd_monitor_number = -1;
-    config.osd_monitor_name = NULL;
 }
 
 /*
@@ -79,8 +75,6 @@ void config_init(void)
  */
 void config_release(void)
 {
-    int i;
-
     if (config.file)
         free(config.file);
 
@@ -89,25 +83,6 @@ void config_release(void)
 
     if (config.osd_color != default_osd_color)
         free(config.osd_color);
-}
-
-bool parse_monitor_value(char *value)
-{
-    char *end;
-    long mon = strtol(value, &end, 10);
-    if (end == value + strlen(value)) {
-        if ((mon > INT_MAX) || (mon < -1)) {
-            return false;
-        } else {
-            if (mon == -1)
-                config.osd = 0;
-            else
-                config.osd_monitor_number = (int)mon;
-        }
-    } else {
-        config.osd_monitor_name = strdup(value);
-    }
-    return true;
 }
 
 /*
@@ -126,7 +101,7 @@ void parse_cli_options(int argc, char **argv)
     config.verbose = false;
     error_found = false;
     for (;;) {
-        opt = getopt(argc, argv, ":a:d:e:f:hkm:o:v");
+        opt = getopt(argc, argv, ":d:e:f:hkm:ov");
         if (opt == -1)
             break;
 
@@ -171,8 +146,7 @@ void parse_cli_options(int argc, char **argv)
             break;
 
         case 'o':
-            if (!parse_monitor_value(optarg))
-                fprintf(stderr, "wmbright:warning: unreasonable monitor number provided on command line, ignoring\n");
+            config.osd = 0;
             break;
 
         case 'v':
@@ -200,7 +174,7 @@ void parse_cli_options(int argc, char **argv)
 /*
  * Read configuration from a file
  *
- * The file name is taken from CLI if available, of falls back to
+ * The file name is taken from CLI if available, or falls back to
  * a default name.
  */
 void config_read(void)
@@ -228,7 +202,7 @@ void config_read(void)
     fp = fopen(filename, "r");
     if (fp == NULL) {
         if (config.file != NULL) {
-            /* The config file was explicitely specified by user, tell him there's a problem */
+            /* The config file was explicitly specified by the user, tell them there's a problem */
             fprintf(stderr, "wmbright: error, could not load configuration file \"%s\"\n", filename);
             exit(EXIT_FAILURE);
         }
@@ -293,16 +267,7 @@ void config_read(void)
         *ptr = '\0';
 
         /* Check what keyword we have */
-        if (strcmp(keyword, "api") == 0) {
-            if (config.api == -1) {
-                if(!strcmp("oss", value))
-                    config.api = 1;
-                else if (!strcmp("alsa", value))
-                    config.api = 0;
-                else
-                    fprintf(stderr, "wmbright:warning: incorrect sound api in config, ignoring\n");
-            }
-        } else if (strcmp(keyword, "exclude") == 0) {
+        if (strcmp(keyword, "exclude") == 0) {
             int i;
 
             for (i = 0; i < EXCLUDE_MAX_COUNT; i++) {
@@ -325,12 +290,6 @@ void config_read(void)
             if (config.osd_color != default_osd_color)
                 free(config.osd_color);
             config.osd_color = strdup(value);
-
-        } else if (strcmp(keyword, "osdmonitor") == 0) {
-            if (!config.osd_monitor_name &&
-                config.osd_monitor_number == -1 &&
-                !parse_monitor_value(value))
-                fprintf(stderr, "wmbright:warning: unreasonable monitor number in config, ignoring\n");
 
         } else if (strcmp(keyword, "scrolltext") == 0) {
             config.scrolltext = atoi(value);
@@ -361,13 +320,4 @@ void config_read(void)
         }
     }
     fclose(fp);
-}
-
-void config_set_defaults()
-{
-    if (config.api == -1)
-        config.api = 0;
-
-    if (!config.osd_monitor_name && config.osd_monitor_number == -1)
-        config.osd_monitor_number = 0;
 }

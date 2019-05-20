@@ -26,9 +26,7 @@
 extern struct _Config {
     char        *file;                /* full path to config file name */
     char        *display_name;        /* X Display to connect to */
-    char        *mixer_device;        /* device file to use for controlling Mixer volumes */
 
-    int api;                          /* Sound API (0 = ALSA, 1 = OSS) */
     unsigned int verbose    : 1;      /* be Verbose when starting */
     unsigned int osd        : 1;      /* show OSD? */
     unsigned int mousewheel : 1;      /* mousewheel enabled? */
@@ -40,8 +38,6 @@ extern struct _Config {
 
     float        scrollstep;          /* scroll mouse step adjustment */
     char        *osd_color;           /* osd color */
-    char        *osd_monitor_name;    /* monitor name to display osd on */
-    int          osd_monitor_number;  /* monitor number to display osd on */
 
     char        *exclude_output[EXCLUDE_MAX_COUNT + 1];     /* Outputs to exclude from GUI's list */
 } config;
@@ -55,7 +51,7 @@ extern const char default_osd_color[];
 /* Sets the default values in the config */
 void config_init(void);
 
-/* Release memory associated with configuration (this concern only stuff needed during startup) */
+/* Release memory associated with configuration (stuff needed only during startup) */
 void config_release(void);
 
 /* Sets configuration from command line */
