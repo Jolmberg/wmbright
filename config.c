@@ -107,7 +107,7 @@ void parse_cli_options(int argc, char **argv)
 
         switch (opt) {
         case '?':
-            fprintf(stderr, "wmbright:error: unknow option '-%c'\n", optopt);
+            fprintf(stderr, "wmbright:error: unknown option '-%c'\n", optopt);
             error_found = true;
             break;
 
@@ -126,7 +126,7 @@ void parse_cli_options(int argc, char **argv)
                 config.exclude_output[count_exclude] = strdup(optarg);
                 count_exclude++;
             } else
-                fprintf(stderr, "Warning: You can't exclude this many channels\n");
+                fprintf(stderr, "wmbright:warning: you can't exclude this many outputs\n");
             break;
 
         case 'f':
@@ -192,7 +192,7 @@ void config_read(void)
 
         home = getenv("HOME");
         if (home == NULL) {
-            fprintf(stderr, "wmbright: warning, could not get $HOME, can't load configuration file\n");
+            fprintf(stderr, "wmbright:warning: could not get $HOME, can't load configuration file\n");
             return;
         }
         snprintf(buffer_fname, sizeof(buffer_fname), "%s/.wmbrightrc", home);
@@ -203,7 +203,7 @@ void config_read(void)
     if (fp == NULL) {
         if (config.file != NULL) {
             /* The config file was explicitly specified by the user, tell them there's a problem */
-            fprintf(stderr, "wmbright: error, could not load configuration file \"%s\"\n", filename);
+            fprintf(stderr, "wmbright:error: could not load configuration file \"%s\"\n", filename);
             exit(EXIT_FAILURE);
         }
         /* Otherwise, it is acceptable if the file does not exist */
@@ -315,7 +315,7 @@ void config_read(void)
                 fprintf(stderr, "wmbright:error: value '%s' not understood for wheelstep in %s at line %d\n",
                         value, filename, line);
         } else {
-            fprintf(stderr, "wmbright:warning: unknow keyword '%s' at line %d of \"%s\", ignored\n",
+            fprintf(stderr, "wmbright:warning: unknown keyword '%s' at line %d of \"%s\", ignored\n",
                     keyword, line, filename);
         }
     }
