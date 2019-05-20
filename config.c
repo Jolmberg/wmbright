@@ -89,13 +89,6 @@ void config_release(void)
 
     if (config.osd_color != default_osd_color)
         free(config.osd_color);
-
-    for (i = 0; i < EXCLUDE_MAX_COUNT; i++) {
-        if (config.exclude_channel[i])
-            free(config.exclude_channel[i]);
-        else
-            break;
-    }
 }
 
 bool parse_monitor_value(char *value)
@@ -155,7 +148,7 @@ void parse_cli_options(int argc, char **argv)
 
         case 'e':
             if (count_exclude < EXCLUDE_MAX_COUNT) {
-                config.exclude_channel[count_exclude] = strdup(optarg);
+                config.exclude_output[count_exclude] = strdup(optarg);
                 count_exclude++;
             } else
                 fprintf(stderr, "Warning: You can't exclude this many channels\n");
@@ -190,7 +183,7 @@ void parse_cli_options(int argc, char **argv)
             break;
         }
     }
-    config.exclude_channel[count_exclude] = NULL;
+    config.exclude_output[count_exclude] = NULL;
 
     if (optind < argc) {
         fprintf(stderr, "wmbright:error: argument '%s' not understood\n", argv[optind]);
@@ -313,13 +306,13 @@ void config_read(void)
             int i;
 
             for (i = 0; i < EXCLUDE_MAX_COUNT; i++) {
-                if (config.exclude_channel[i] == NULL) {
-                    config.exclude_channel[i] = strdup(value);
-                    config.exclude_channel[i+1] = NULL;
+                if (config.exclude_output[i] == NULL) {
+                    config.exclude_output[i] = strdup(value);
+                    config.exclude_output[i+1] = NULL;
                     break;
                 }
 
-                if (strcmp(value, config.exclude_channel[i]) == 0)
+                if (strcmp(value, config.exclude_output[i]) == 0)
                     break;
             }
         } else if (strcmp(keyword, "mousewheel") == 0) {

@@ -77,6 +77,7 @@ static bool needs_update;
 static Display *display;
 static float global_offset;
 static bool verbose;
+const char **excluded_outputs;
 
 
 /* static int elem_callback(__attribute__((unused)) snd_mixer_elem_t *elem, */
@@ -375,8 +376,20 @@ static void get_gamma_values(struct monitor_data *m)
     m->level[GAMMA] = (100 * brightness) + 0.5;
 }
 
-void brightness_init(Display *x_display, bool set_verbose)
+static bool is_excluded(const char *short_name, const char *exclude[])
 {
+    for (int i = 0; exclude[i] != NULL; i++) {
+        if (!strcmp(short_name, exclude[i])) {
+            return true;
+        }
+    }
+    return false;
+}
+
+
+void brightness_init(Display *x_display, bool set_verbose, const char *exclude[])
+{
+    excluded_outputs = exclude;
     needs_update = true;
     display = x_display;
     verbose = set_verbose;
@@ -384,11 +397,11 @@ void brightness_init(Display *x_display, bool set_verbose)
 
     /* Count the number of monitors that are actually in use. */
     n_monitors = 1;
+    XRROutputInfo *oi[screen->noutput];
     for (int i = 0; i < screen->noutput; i++) {
-        XRROutputInfo *oi = XRRGetOutputInfo(display, screen, screen->outputs[i]);
-        if (oi->crtc != 0)
+        oi[i] = XRRGetOutputInfo(display, screen, screen->outputs[i]);
+        if (oi[i]->crtc != 0 && !is_excluded(oi[i]->name, excluded_outputs))
             n_monitors++;
-        XRRFreeOutputInfo(oi);
     }
 
     if (verbose)
@@ -411,21 +424,20 @@ void brightness_init(Display *x_display, bool set_verbose)
 
     int i2 = 0;
     for (int i = 0; i < screen->noutput; i++) {
-        XRROutputInfo *oi = XRRGetOutputInfo(display, screen, screen->outputs[i]);
         if (verbose)
-            printf("Found monitor: %s, connection: %d, output: %d crtc: %d\n", oi->name, oi->connection, (int)screen->outputs[i], (int)oi->crtc);
-        if (oi->crtc == 0) {
-            XRRFreeOutputInfo(oi);
+            printf("Found monitor: %s, connection: %d, output: %d crtc: %d\n", oi[i]->name, oi[i]->connection, (int)screen->outputs[i], (int)oi[i]->crtc);
+        if (oi[i]->crtc == 0 || is_excluded(oi[i]->name, excluded_outputs)) {
+            XRRFreeOutputInfo(oi[i]);
             continue;
         }
         i2++;
         struct monitor *m = monitors + i2;
-        strncpy(m->name, oi->name, 16);
+        strncpy(m->name, oi[i]->name, 16);
         m->name[16] = '\0';
         m->is_clone = false;
-        for (int j = 0; j < oi->nclone; j++) {
+        for (int j = 0; j < oi[i]->nclone; j++) {
             for (int k = 0; k < i2; k++) {
-                if (oi->clones[j] == monitors[k].data->output) {
+                if (oi[i]->clones[j] == monitors[k].data->output) {
                     if (verbose)
                         printf("This is a clone of %s\n", monitors[k].name);
                     m->data = monitors[k].data;
@@ -443,7 +455,7 @@ void brightness_init(Display *x_display, bool set_verbose)
             d->supported_methods[1] = false;
             d->supported_methods[2] = false;
             d->current_method = NONE;
-            d->crtc = oi->crtc;
+            d->crtc = oi[i]->crtc;
             d->output = screen->outputs[i];
             pthread_mutex_init(&d->mutex, NULL);
             d->thread_active = false;
@@ -457,7 +469,7 @@ void brightness_init(Display *x_display, bool set_verbose)
             d->dim = (struct dimensions){ ci->x, ci->y, ci->width, ci->height };
             XRRFreeCrtcInfo(ci);
         }
-        XRRFreeOutputInfo(oi);
+        XRRFreeOutputInfo(oi[i]);
         if (verbose)
             printf("Stored monitor: %d, crtc: %ld\n", i2, m->data->crtc);
     }
@@ -485,7 +497,7 @@ void brightness_reinit() {
     }
     free(monitors);
 
-    brightness_init(display, verbose);
+    brightness_init(display, verbose, excluded_outputs);
 }
 
 static bool get_brightness_state(void)

@@ -43,7 +43,7 @@ extern struct _Config {
     char        *osd_monitor_name;    /* monitor name to display osd on */
     int          osd_monitor_number;  /* monitor number to display osd on */
 
-    char        *exclude_channel[EXCLUDE_MAX_COUNT + 1];    /* Devices to exclude from GUI's list */
+    char        *exclude_output[EXCLUDE_MAX_COUNT + 1];     /* Outputs to exclude from GUI's list */
 } config;
 
 /* Default color for OSD */

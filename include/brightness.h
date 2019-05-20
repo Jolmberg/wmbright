@@ -30,7 +30,7 @@ enum method {
     GAMMA = 2
 };
 
-void brightness_init(Display *display, bool set_verbose);
+void brightness_init(Display *display, bool set_verbose, const char *exclude[]);
 void brightness_reinit(void);
 bool brightness_is_changed(void);
 float brightness_get_level(int monitor);

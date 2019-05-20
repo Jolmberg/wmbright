@@ -98,7 +98,7 @@ int main(int argc, char **argv)
                    RootWindow(display, DefaultScreen(display)),
                    rr_mask);
 
-    brightness_init(display, config.verbose);
+    brightness_init(display, config.verbose, (const char **)config.exclude_output);
 
     display_width = (float)DisplayWidth(display, DefaultScreen(display)) / 4.0;
     display_height = (float)DisplayHeight(display, DefaultScreen(display)) / 2.0;
