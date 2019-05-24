@@ -42,7 +42,7 @@
     "  -h        print this help\n"                                 \
     "  -k        disable grabbing of brightness control keys\n"     \
     "  -o        disable osd\n"                                     \
-    "  -v        verbose -> id, long name, name\n"                  \
+    "  -v        verbose\n"                                         \
 
 /* The global configuration */
 struct _Config config;

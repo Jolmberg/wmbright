@@ -43,7 +43,13 @@ the defaults, in case no configuration file is found):
     wheelbtn2=5             # which mouse button is "wheel down"
     wheelstep=3             # the step for mouse wheel adjustment
 
-A sample configuration file is provided in sample.wmbright
+A sample configuration file is provided in sample.wmbright.
+
+Additionally, an exclude parameter is understood, allowing outputs to be
+excluded from wmbright control:
+
+    exclude=HDMI-0
+    exclude=DVI-I-1
 
 ## Command line parameters
 
