@@ -57,14 +57,14 @@ Run wmbright -h to list the command line parameters.
 
 ## Troubleshooting
 
-# Xorg config
+### Xorg config
 
 wmbright uses libxrandr to manipulate backlight as well as gamma. Sometimes
-xrandr cannot access the backlight property out of the box. This can be fixed
-by adding a small piece of xorg config. If your system contains the directory
-/sys/class/backlight/intel_backlight but backlight manipulation does not work,
-it is likely that this can be remedied by adding the file
-/etc/X11/xorg.conf.d/20-video.conf
+xrandr cannot access the backlight property out of the box. If your system
+contains the directory /sys/class/backlight/intel_backlight but backlight
+manipulation does not work, it is likely that this can be remedied by adding
+the file /etc/X11/xorg.conf.d/20-video.conf with the following contents (or
+modifying your current xorg config to the same effect):
 
     Section "Device"
         Identifier  "Intel Graphics"
@@ -74,10 +74,11 @@ it is likely that this can be remedied by adding the file
 
 (courtesy of the Arch Wiki, https://wiki.archlinux.org/title/backlight)
 
-# Night light
+### Night light
 
 Night light applications such as redshift typically use the same gamma controls
 as wmbright. If your brightness seems to revert shortly after adjusting it with
 wmbright, it's likely that you have some sort of night light software running.
 There is not much that can be done about this outside of disabling the night
 light app.
+
